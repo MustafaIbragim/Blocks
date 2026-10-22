@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -O3 -march=native -DNDEBUG -flto=auto -shared  -o /home/user/Документы/Blocks/python/image_module.cpython-38-x86_64-linux-gnu.so CMakeFiles/image_module.dir/bindings/image_pybind.cpp.o  -Wl,-rpath,"\$ORIGIN/../lib" /home/user/Документы/Blocks/lib/libcore.so /home/user/Документы/Blocks/lib/libvec.so

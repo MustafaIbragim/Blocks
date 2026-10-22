@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -O3 -march=native -DNDEBUG -flto=auto -shared  -o /home/user/Документы/Blocks/python/input_module.cpython-38-x86_64-linux-gnu.so CMakeFiles/input_module.dir/bindings/input_pybind.cpp.o  -Wl,-rpath,"\$ORIGIN/../lib" /home/user/Документы/Blocks/lib/libcore.so /home/user/Документы/Blocks/lib/libvec.so

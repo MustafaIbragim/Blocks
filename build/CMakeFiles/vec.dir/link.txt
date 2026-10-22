@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -O3 -march=native -DNDEBUG -shared -Wl,-soname,libvec.so -o /home/user/Документы/Blocks/lib/libvec.so CMakeFiles/vec.dir/src/vec.cpp.o

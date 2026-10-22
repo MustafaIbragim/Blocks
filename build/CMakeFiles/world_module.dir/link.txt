@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -O3 -march=native -DNDEBUG -flto=auto -shared  -o /home/user/Документы/Blocks/python/world_module.cpython-38-x86_64-linux-gnu.so CMakeFiles/world_module.dir/bindings/world_pybind.cpp.o  -Wl,-rpath,"\$ORIGIN/../lib" /home/user/Документы/Blocks/lib/libcore.so /home/user/Документы/Blocks/lib/libvec.so

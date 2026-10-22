@@ -1,0 +1,16 @@
+/home/user/Документы/Blocks/build/CMakeFiles/glad.dir
+/home/user/Документы/Blocks/build/CMakeFiles/vec.dir
+/home/user/Документы/Blocks/build/CMakeFiles/core.dir
+/home/user/Документы/Blocks/build/CMakeFiles/vec_module.dir
+/home/user/Документы/Blocks/build/CMakeFiles/image_module.dir
+/home/user/Документы/Blocks/build/CMakeFiles/texture_module.dir
+/home/user/Документы/Blocks/build/CMakeFiles/mesh_module.dir
+/home/user/Документы/Blocks/build/CMakeFiles/block_module.dir
+/home/user/Документы/Blocks/build/CMakeFiles/chunk_module.dir
+/home/user/Документы/Blocks/build/CMakeFiles/chunk_mesher_module.dir
+/home/user/Документы/Blocks/build/CMakeFiles/world_module.dir
+/home/user/Документы/Blocks/build/CMakeFiles/input_module.dir
+/home/user/Документы/Blocks/build/CMakeFiles/renderer.dir
+/home/user/Документы/Blocks/build/CMakeFiles/renderer_module.dir
+/home/user/Документы/Blocks/build/CMakeFiles/edit_cache.dir
+/home/user/Документы/Blocks/build/CMakeFiles/rebuild_cache.dir
