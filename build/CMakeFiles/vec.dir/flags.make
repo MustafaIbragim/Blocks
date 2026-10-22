@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -Dvec_EXPORTS
 
-CXX_INCLUDES = -I/home/user/Документы/Blocks/include
+CXX_INCLUDES = -I/home/user/Документы/Blocks/Original/include
 
 CXX_FLAGS = -O3 -march=native -DNDEBUG -std=gnu++17 -fPIC
 

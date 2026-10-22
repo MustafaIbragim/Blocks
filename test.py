@@ -2,6 +2,7 @@ import sys
 import os
 import math
 import time
+import random
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'python'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
@@ -31,18 +32,52 @@ def test_renderer():
     block_mgr = bm.BlockManager()
     tex_blocks_mgr = tm.TextureBlocksManager()
     tex_mgr = tm.TextureManager()
-    
-    img = im_img.Image(16, 16)
-    img.fill(vm.Vec4u8(200, 100, 50, 255))
-    tex = tm.Texture([img], "dirt")
-    tex_id = tex_blocks_mgr.register_texture(tex)
-    
+
+    def make_noise_texture(base_rgb, noise_amplitude, seed):
+        """16x16 тайл: базовый цвет + небольшой нейтральный (серый) шум.
+
+        Одинаковый сдвиг добавляется ко всем каналам RGB, поэтому шум не
+        вносит цветной оттенок — только колебания яркости.
+        """
+        rng = random.Random(seed)
+        tex_img = im_img.Image(16, 16)
+        base_r, base_g, base_b = base_rgb
+        for py in range(tex_img.height):
+            for px in range(tex_img.width):
+                shade = rng.randint(-noise_amplitude, noise_amplitude)
+                tex_img.set_pixel(px, py, vm.Vec4u8(
+                    max(0, min(255, base_r + shade)),
+                    max(0, min(255, base_g + shade)),
+                    max(0, min(255, base_b + shade)),
+                    255,
+                ))
+        return tex_img
+
+    # Земля: приглушённый коричневый + серый шум.
+    dirt_img = make_noise_texture((112, 84, 58), 16, seed=1234)
+    # Трава: спокойный (не кислотный) зелёный + серый шум.
+    grass_img = make_noise_texture((86, 132, 64), 12, seed=5678)
+
+    dirt_tex = tm.Texture([dirt_img], "dirt")
+    grass_tex = tm.Texture([grass_img], "grass")
+
+    # id текстуры в TextureBlocksManager одновременно является слоем
+    # в GL_TEXTURE_2D_ARRAY (на одну текстуру — один слой).
+    dirt_tex_id = tex_blocks_mgr.register_texture(dirt_tex)
+    grass_tex_id = tex_blocks_mgr.register_texture(grass_tex)
+    print(f"  Текстуры: dirt id={dirt_tex_id} (слой {dirt_tex_id}), "
+          f"grass id={grass_tex_id} (слой {grass_tex_id})")
+
     dirt = bm.Block(0, "dirt")
     dirt.id = block_mgr.register_block(dirt)
     dirt.opacity = 255
     dirt.status = 0x01
+
+    # Порядок граней в ChunkMesher::build_cube_faces:
+    #   0 = -X, 1 = +X, 2 = -Y, 3 = +Y, 4 = -Z, 5 = +Z.
+    # Земля — на всех гранях, кроме верхней; трава — только на верхней (+Y).
     for i in range(6):
-        dirt.set_face_texture(i, tex_id)
+        dirt.set_face_texture(i, grass_tex_id if i == 3 else dirt_tex_id)
     
     world = wm.World(block_mgr, tex_blocks_mgr, tex_mgr)
     chunk = cm.Chunk()

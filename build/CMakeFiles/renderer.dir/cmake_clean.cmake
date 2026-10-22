@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/user/Документы/Blocks/lib/librenderer.pdb"
-  "/home/user/Документы/Blocks/lib/librenderer.so"
+  "/home/user/Документы/Blocks/Original/lib/librenderer.pdb"
+  "/home/user/Документы/Blocks/Original/lib/librenderer.so"
   "CMakeFiles/renderer.dir/src/renderer.cpp.o"
   "CMakeFiles/renderer.dir/src/renderer.cpp.o.d"
 )

@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/user/Документы/Blocks/python/mesh_module.cpython-38-x86_64-linux-gnu.so"
-  "/home/user/Документы/Blocks/python/mesh_module.pdb"
+  "/home/user/Документы/Blocks/Original/python/mesh_module.cpython-38-x86_64-linux-gnu.so"
+  "/home/user/Документы/Blocks/Original/python/mesh_module.pdb"
   "CMakeFiles/mesh_module.dir/bindings/mesh_pybind.cpp.o"
   "CMakeFiles/mesh_module.dir/bindings/mesh_pybind.cpp.o.d"
 )

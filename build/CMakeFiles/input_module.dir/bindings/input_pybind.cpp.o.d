@@ -1,5 +1,5 @@
 CMakeFiles/input_module.dir/bindings/input_pybind.cpp.o: \
- /home/user/Документы/Blocks/bindings/input_pybind.cpp \
+ /home/user/Документы/Blocks/Original/bindings/input_pybind.cpp \
  /usr/include/stdc-predef.h \
  /home/user/.local/lib/python3.8/site-packages/pybind11/include/pybind11/pybind11.h \
  /home/user/.local/lib/python3.8/site-packages/pybind11/include/pybind11/detail/class.h \
@@ -343,4 +343,4 @@ CMakeFiles/input_module.dir/bindings/input_pybind.cpp.o: \
  /usr/include/c++/9/pstl/glue_algorithm_defs.h /usr/include/c++/9/stack \
  /usr/include/c++/9/deque /usr/include/c++/9/bits/stl_deque.h \
  /usr/include/c++/9/bits/deque.tcc /usr/include/c++/9/bits/stl_stack.h \
- /home/user/Документы/Blocks/include/input.h
+ /home/user/Документы/Blocks/Original/include/input.h

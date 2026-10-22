@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/user/Документы/Blocks/python/vec_module.cpython-38-x86_64-linux-gnu.so"
-  "/home/user/Документы/Blocks/python/vec_module.pdb"
+  "/home/user/Документы/Blocks/Original/python/vec_module.cpython-38-x86_64-linux-gnu.so"
+  "/home/user/Документы/Blocks/Original/python/vec_module.pdb"
   "CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o"
   "CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o.d"
 )

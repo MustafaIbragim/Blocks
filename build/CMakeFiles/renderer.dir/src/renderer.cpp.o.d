@@ -1,7 +1,7 @@
 CMakeFiles/renderer.dir/src/renderer.cpp.o: \
- /home/user/Документы/Blocks/src/renderer.cpp \
+ /home/user/Документы/Blocks/Original/src/renderer.cpp \
  /usr/include/stdc-predef.h \
- /home/user/Документы/Blocks/include/renderer.h \
+ /home/user/Документы/Blocks/Original/include/renderer.h \
  /usr/include/c++/9/cstdint \
  /usr/include/x86_64-linux-gnu/c++/9/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/9/bits/os_defines.h \
@@ -156,7 +156,7 @@ CMakeFiles/renderer.dir/src/renderer.cpp.o: \
  /usr/include/c++/9/backward/auto_ptr.h \
  /usr/include/c++/9/pstl/glue_memory_defs.h \
  /usr/include/c++/9/pstl/execution_defs.h \
- /home/user/Документы/Blocks/include/vec.h \
+ /home/user/Документы/Blocks/Original/include/vec.h \
  /usr/include/c++/9/cmath /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
@@ -180,18 +180,18 @@ CMakeFiles/renderer.dir/src/renderer.cpp.o: \
  /usr/include/c++/9/tr1/poly_hermite.tcc \
  /usr/include/c++/9/tr1/poly_laguerre.tcc \
  /usr/include/c++/9/tr1/riemann_zeta.tcc \
- /home/user/Документы/Blocks/include/mesh.h \
+ /home/user/Документы/Blocks/Original/include/mesh.h \
  /usr/include/c++/9/vector /usr/include/c++/9/bits/stl_vector.h \
  /usr/include/c++/9/bits/stl_bvector.h /usr/include/c++/9/bits/vector.tcc \
- /home/user/Документы/Blocks/include/world.h \
+ /home/user/Документы/Blocks/Original/include/world.h \
  /usr/include/c++/9/unordered_set /usr/include/c++/9/bits/unordered_set.h \
- /home/user/Документы/Blocks/include/chunk.h \
- /home/user/Документы/Blocks/include/block.h \
- /home/user/Документы/Blocks/include/texture.h \
- /home/user/Документы/Blocks/include/image.h \
+ /home/user/Документы/Blocks/Original/include/chunk.h \
+ /home/user/Документы/Blocks/Original/include/block.h \
+ /home/user/Документы/Blocks/Original/include/texture.h \
+ /home/user/Документы/Blocks/Original/include/image.h \
  /usr/include/c++/9/cstddef \
- /home/user/Документы/Blocks/glad/include/glad/glad.h \
- /home/user/Документы/Blocks/glad/include/KHR/khrplatform.h \
+ /home/user/Документы/Blocks/Original/glad/include/glad/glad.h \
+ /home/user/Документы/Blocks/Original/glad/include/KHR/khrplatform.h \
  /usr/include/GLFW/glfw3.h /usr/include/GL/gl.h \
  /usr/include/c++/9/iostream /usr/include/c++/9/ostream \
  /usr/include/c++/9/ios /usr/include/c++/9/bits/ios_base.h \
@@ -209,4 +209,10 @@ CMakeFiles/renderer.dir/src/renderer.cpp.o: \
  /usr/include/c++/9/bits/locale_facets.tcc \
  /usr/include/c++/9/bits/basic_ios.tcc \
  /usr/include/c++/9/bits/ostream.tcc /usr/include/c++/9/istream \
- /usr/include/c++/9/bits/istream.tcc
+ /usr/include/c++/9/bits/istream.tcc /usr/include/c++/9/algorithm \
+ /usr/include/c++/9/bits/stl_algo.h \
+ /usr/include/c++/9/bits/algorithmfwd.h \
+ /usr/include/c++/9/bits/stl_heap.h \
+ /usr/include/c++/9/bits/uniform_int_dist.h \
+ /usr/include/c++/9/pstl/glue_algorithm_defs.h \
+ /usr/include/c++/9/functional /usr/include/c++/9/bits/std_function.h

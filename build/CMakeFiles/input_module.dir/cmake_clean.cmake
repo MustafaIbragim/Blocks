@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/user/Документы/Blocks/python/input_module.cpython-38-x86_64-linux-gnu.so"
-  "/home/user/Документы/Blocks/python/input_module.pdb"
+  "/home/user/Документы/Blocks/Original/python/input_module.cpython-38-x86_64-linux-gnu.so"
+  "/home/user/Документы/Blocks/Original/python/input_module.pdb"
   "CMakeFiles/input_module.dir/bindings/input_pybind.cpp.o"
   "CMakeFiles/input_module.dir/bindings/input_pybind.cpp.o.d"
 )

@@ -1,1 +1,1 @@
-/usr/bin/c++ -fPIC -O3 -march=native -DNDEBUG -flto=auto -shared  -o /home/user/Документы/Blocks/python/vec_module.cpython-38-x86_64-linux-gnu.so CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o  -Wl,-rpath,"\$ORIGIN/../lib" /home/user/Документы/Blocks/lib/libvec.so
+/usr/bin/c++ -fPIC -O3 -march=native -DNDEBUG -flto=auto -shared  -o /home/user/Документы/Blocks/Original/python/vec_module.cpython-38-x86_64-linux-gnu.so CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o  -Wl,-rpath,"\$ORIGIN/../lib" /home/user/Документы/Blocks/Original/lib/libvec.so

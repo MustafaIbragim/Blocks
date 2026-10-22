@@ -1,7 +1,7 @@
 CMakeFiles/core.dir/src/world.cpp.o: \
- /home/user/Документы/Blocks/src/world.cpp \
+ /home/user/Документы/Blocks/Original/src/world.cpp \
  /usr/include/stdc-predef.h \
- /home/user/Документы/Blocks/include/world.h \
+ /home/user/Документы/Blocks/Original/include/world.h \
  /usr/include/c++/9/cstdint \
  /usr/include/x86_64-linux-gnu/c++/9/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/9/bits/os_defines.h \
@@ -158,7 +158,7 @@ CMakeFiles/core.dir/src/world.cpp.o: \
  /usr/include/c++/9/backward/auto_ptr.h \
  /usr/include/c++/9/pstl/glue_memory_defs.h \
  /usr/include/c++/9/pstl/execution_defs.h \
- /home/user/Документы/Blocks/include/vec.h \
+ /home/user/Документы/Blocks/Original/include/vec.h \
  /usr/include/c++/9/cmath /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
@@ -182,12 +182,12 @@ CMakeFiles/core.dir/src/world.cpp.o: \
  /usr/include/c++/9/tr1/poly_hermite.tcc \
  /usr/include/c++/9/tr1/poly_laguerre.tcc \
  /usr/include/c++/9/tr1/riemann_zeta.tcc \
- /home/user/Документы/Blocks/include/chunk.h \
+ /home/user/Документы/Blocks/Original/include/chunk.h \
  /usr/include/c++/9/vector /usr/include/c++/9/bits/stl_vector.h \
  /usr/include/c++/9/bits/stl_bvector.h /usr/include/c++/9/bits/vector.tcc \
- /home/user/Документы/Blocks/include/block.h \
- /home/user/Документы/Blocks/include/mesh.h \
- /home/user/Документы/Blocks/include/texture.h \
- /home/user/Документы/Blocks/include/image.h \
+ /home/user/Документы/Blocks/Original/include/block.h \
+ /home/user/Документы/Blocks/Original/include/mesh.h \
+ /home/user/Документы/Blocks/Original/include/texture.h \
+ /home/user/Документы/Blocks/Original/include/image.h \
  /usr/include/c++/9/cstddef \
- /home/user/Документы/Blocks/include/chunk_mesher.h
+ /home/user/Документы/Blocks/Original/include/chunk_mesher.h

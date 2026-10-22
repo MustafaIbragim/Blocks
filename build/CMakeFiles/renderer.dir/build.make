@@ -53,10 +53,10 @@ RM = /home/user/.local/lib/python3.8/site-packages/cmake/data/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/user/Документы/Blocks
+CMAKE_SOURCE_DIR = /home/user/Документы/Blocks/Original
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/user/Документы/Blocks/build
+CMAKE_BINARY_DIR = /home/user/Документы/Blocks/Original/build
 
 # Include any dependencies generated for this target.
 include CMakeFiles/renderer.dir/depend.make
@@ -70,18 +70,18 @@ include CMakeFiles/renderer.dir/progress.make
 include CMakeFiles/renderer.dir/flags.make
 
 CMakeFiles/renderer.dir/src/renderer.cpp.o: CMakeFiles/renderer.dir/flags.make
-CMakeFiles/renderer.dir/src/renderer.cpp.o: /home/user/Документы/Blocks/src/renderer.cpp
+CMakeFiles/renderer.dir/src/renderer.cpp.o: /home/user/Документы/Blocks/Original/src/renderer.cpp
 CMakeFiles/renderer.dir/src/renderer.cpp.o: CMakeFiles/renderer.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/renderer.dir/src/renderer.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/renderer.dir/src/renderer.cpp.o -MF CMakeFiles/renderer.dir/src/renderer.cpp.o.d -o CMakeFiles/renderer.dir/src/renderer.cpp.o -c /home/user/Документы/Blocks/src/renderer.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/renderer.dir/src/renderer.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/renderer.dir/src/renderer.cpp.o -MF CMakeFiles/renderer.dir/src/renderer.cpp.o.d -o CMakeFiles/renderer.dir/src/renderer.cpp.o -c /home/user/Документы/Blocks/Original/src/renderer.cpp
 
 CMakeFiles/renderer.dir/src/renderer.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/renderer.dir/src/renderer.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/src/renderer.cpp > CMakeFiles/renderer.dir/src/renderer.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/Original/src/renderer.cpp > CMakeFiles/renderer.dir/src/renderer.cpp.i
 
 CMakeFiles/renderer.dir/src/renderer.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/renderer.dir/src/renderer.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/src/renderer.cpp -o CMakeFiles/renderer.dir/src/renderer.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/Original/src/renderer.cpp -o CMakeFiles/renderer.dir/src/renderer.cpp.s
 
 # Object files for target renderer
 renderer_OBJECTS = \
@@ -90,18 +90,18 @@ renderer_OBJECTS = \
 # External object files for target renderer
 renderer_EXTERNAL_OBJECTS =
 
-/home/user/Документы/Blocks/lib/librenderer.so: CMakeFiles/renderer.dir/src/renderer.cpp.o
-/home/user/Документы/Blocks/lib/librenderer.so: CMakeFiles/renderer.dir/build.make
-/home/user/Документы/Blocks/lib/librenderer.so: /home/user/Документы/Blocks/lib/libcore.so
-/home/user/Документы/Blocks/lib/librenderer.so: libglad.a
-/home/user/Документы/Blocks/lib/librenderer.so: /usr/lib/x86_64-linux-gnu/libglfw.so.3.3
-/home/user/Документы/Blocks/lib/librenderer.so: /home/user/Документы/Blocks/lib/libvec.so
-/home/user/Документы/Blocks/lib/librenderer.so: CMakeFiles/renderer.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX shared library /home/user/Документы/Blocks/lib/librenderer.so"
+/home/user/Документы/Blocks/Original/lib/librenderer.so: CMakeFiles/renderer.dir/src/renderer.cpp.o
+/home/user/Документы/Blocks/Original/lib/librenderer.so: CMakeFiles/renderer.dir/build.make
+/home/user/Документы/Blocks/Original/lib/librenderer.so: /home/user/Документы/Blocks/Original/lib/libcore.so
+/home/user/Документы/Blocks/Original/lib/librenderer.so: libglad.a
+/home/user/Документы/Blocks/Original/lib/librenderer.so: /usr/lib/x86_64-linux-gnu/libglfw.so.3.3
+/home/user/Документы/Blocks/Original/lib/librenderer.so: /home/user/Документы/Blocks/Original/lib/libvec.so
+/home/user/Документы/Blocks/Original/lib/librenderer.so: CMakeFiles/renderer.dir/link.txt
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX shared library /home/user/Документы/Blocks/Original/lib/librenderer.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/renderer.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
-CMakeFiles/renderer.dir/build: /home/user/Документы/Blocks/lib/librenderer.so
+CMakeFiles/renderer.dir/build: /home/user/Документы/Blocks/Original/lib/librenderer.so
 .PHONY : CMakeFiles/renderer.dir/build
 
 CMakeFiles/renderer.dir/clean:
@@ -109,6 +109,6 @@ CMakeFiles/renderer.dir/clean:
 .PHONY : CMakeFiles/renderer.dir/clean
 
 CMakeFiles/renderer.dir/depend:
-	cd /home/user/Документы/Blocks/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/user/Документы/Blocks /home/user/Документы/Blocks /home/user/Документы/Blocks/build /home/user/Документы/Blocks/build /home/user/Документы/Blocks/build/CMakeFiles/renderer.dir/DependInfo.cmake "--color=$(COLOR)"
+	cd /home/user/Документы/Blocks/Original/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/user/Документы/Blocks/Original /home/user/Документы/Blocks/Original /home/user/Документы/Blocks/Original/build /home/user/Документы/Blocks/Original/build /home/user/Документы/Blocks/Original/build/CMakeFiles/renderer.dir/DependInfo.cmake "--color=$(COLOR)"
 .PHONY : CMakeFiles/renderer.dir/depend
 

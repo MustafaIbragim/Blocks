@@ -1,7 +1,7 @@
 CMakeFiles/core.dir/src/mesh.cpp.o: \
- /home/user/Документы/Blocks/src/mesh.cpp \
+ /home/user/Документы/Blocks/Original/src/mesh.cpp \
  /usr/include/stdc-predef.h \
- /home/user/Документы/Blocks/include/mesh.h \
+ /home/user/Документы/Blocks/Original/include/mesh.h \
  /usr/include/c++/9/cstdint \
  /usr/include/x86_64-linux-gnu/c++/9/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/9/bits/os_defines.h \
@@ -55,7 +55,7 @@ CMakeFiles/core.dir/src/mesh.cpp.o: \
  /usr/include/c++/9/bits/functional_hash.h \
  /usr/include/c++/9/bits/range_access.h \
  /usr/include/c++/9/bits/vector.tcc \
- /home/user/Документы/Blocks/include/vec.h \
+ /home/user/Документы/Blocks/Original/include/vec.h \
  /usr/include/c++/9/cmath /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \

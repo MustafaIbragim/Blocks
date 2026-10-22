@@ -70,8 +70,8 @@ private:
     uint32_t block_texture_array_id;
     
     struct GPUMesh {
-        uint32_t vao, vbo, ebo, fbo; // fbo — буфер данных граней (uv/layer/anim)
-        uint32_t vertex_count, index_count;
+        uint32_t vao, vbo, fbo; // fbo — буфер данных граней (uv/layer/anim)
+        uint32_t vertex_count;
     };
     std::unordered_map<uint32_t, GPUMesh> block_meshes;
     std::unordered_map<uint32_t, uint32_t> entity_textures;

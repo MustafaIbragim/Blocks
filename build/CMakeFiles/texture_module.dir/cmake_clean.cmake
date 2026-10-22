@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/user/Документы/Blocks/python/texture_module.cpython-38-x86_64-linux-gnu.so"
-  "/home/user/Документы/Blocks/python/texture_module.pdb"
+  "/home/user/Документы/Blocks/Original/python/texture_module.cpython-38-x86_64-linux-gnu.so"
+  "/home/user/Документы/Blocks/Original/python/texture_module.pdb"
   "CMakeFiles/texture_module.dir/bindings/texture_pybind.cpp.o"
   "CMakeFiles/texture_module.dir/bindings/texture_pybind.cpp.o.d"
 )

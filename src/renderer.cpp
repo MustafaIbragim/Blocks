@@ -55,7 +55,6 @@ void Renderer::cleanup() {
         for (auto& [id, mesh] : block_meshes) {
             glDeleteVertexArrays(1, &mesh.vao);
             glDeleteBuffers(1, &mesh.vbo);
-            glDeleteBuffers(1, &mesh.ebo);
             glDeleteBuffers(1, &mesh.fbo);
         }
         block_meshes.clear();
@@ -302,21 +301,48 @@ void Renderer::remove_texture(uint32_t texture_id) {
 void Renderer::upload_mesh(uint32_t mesh_id, const Mesh& mesh) {
     remove_mesh(mesh_id);
 
+    if (mesh.indices.size() != mesh.faces.size() * 3) {
+        throw std::runtime_error("Renderer::upload_mesh: indices/faces size mismatch");
+    }
+
+    // Раскрываем индексированный меш в неиндексированный: на каждый
+    // треугольник — свои 3 вершины и 3 записи атрибутов грани.
+    //
+    // Это принципиально: атрибуты 2..4 (uv/layer/anim) лежат в отдельном
+    // буфере и при glDrawElements индексируются тем же индексом вершины,
+    // что и позиция. Один общий индекс не может указывать одновременно на
+    // разные uv/layer разных граней, поэтому индексированный меш с
+    // переиспользованием вершин приводил к «съезжанию» uv и текстур.
+    std::vector<Vertex> vertices;
+    std::vector<GPUFaceAttr> face_attrs;
+    vertices.reserve(mesh.indices.size());
+    face_attrs.reserve(mesh.indices.size());
+
+    for (size_t tri = 0; tri < mesh.faces.size(); ++tri) {
+        const FaceData& fd = mesh.faces[tri];
+        const float u[3] = {fd.u_0, fd.u_1, fd.u_2};
+        const float v[3] = {fd.v_0, fd.v_1, fd.v_2};
+
+        for (int corner = 0; corner < 3; ++corner) {
+            const uint32_t vertex_index = mesh.indices[tri * 3 + corner];
+            vertices.push_back(mesh.vertices[vertex_index]);
+            face_attrs.push_back({u[corner], v[corner], fd.layer, fd.anim_data});
+        }
+    }
+
     GPUMesh gpu_mesh{};
-    gpu_mesh.vertex_count = static_cast<uint32_t>(mesh.vertices.size());
-    gpu_mesh.index_count = static_cast<uint32_t>(mesh.indices.size());
+    gpu_mesh.vertex_count = static_cast<uint32_t>(vertices.size());
 
     glGenVertexArrays(1, &gpu_mesh.vao);
     glGenBuffers(1, &gpu_mesh.vbo);
-    glGenBuffers(1, &gpu_mesh.ebo);
     glGenBuffers(1, &gpu_mesh.fbo);
 
     glBindVertexArray(gpu_mesh.vao);
 
     // Вербюфер: Vertex = 16 байт (vec3 pos + uint8 block_light + uint8 sky_light + uint16 padding)
     glBindBuffer(GL_ARRAY_BUFFER, gpu_mesh.vbo);
-    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(Vertex),
-                 mesh.vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex),
+                 vertices.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
     glEnableVertexAttribArray(0);
@@ -324,27 +350,12 @@ void Renderer::upload_mesh(uint32_t mesh_id, const Mesh& mesh) {
     glVertexAttribIPointer(1, 1, GL_UNSIGNED_BYTE, sizeof(Vertex), (void*)12);
     glEnableVertexAttribArray(1);
 
-    // EBO — индексы вершин треугольников
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpu_mesh.ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(uint32_t),
-                 mesh.indices.data(), GL_STATIC_DRAW);
-
-    // Буфер граней: на каждый треугольник 3 записи по 16 байт
-    // (u_i, v_i, layer, anim_data) — i-й записи соответствует i-я вершина треугольника.
-    std::vector<GPUFaceAttr> face_attrs;
-    face_attrs.reserve(mesh.faces.size() * 3);
-    for (const FaceData& fd : mesh.faces) {
-        face_attrs.push_back({fd.u_0, fd.v_0, fd.layer, fd.anim_data});
-        face_attrs.push_back({fd.u_1, fd.v_1, fd.layer, fd.anim_data});
-        face_attrs.push_back({fd.u_2, fd.v_2, fd.layer, fd.anim_data});
-    }
-
+    // Буфер граней: на каждый угол каждого треугольника — своя запись
+    // (u, v, layer, anim_data). Порядок совпадает с порядком вершин в VBO.
     glBindBuffer(GL_ARRAY_BUFFER, gpu_mesh.fbo);
     glBufferData(GL_ARRAY_BUFFER, face_attrs.size() * sizeof(GPUFaceAttr),
                  face_attrs.data(), GL_STATIC_DRAW);
 
-    // В буфере faces на каждую вершину рисуемых треугольников своя запись
-    // (uv этого угла + layer/anim грани), шаг атрибута = 1 вершина.
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(GPUFaceAttr), (void*)0);
     glEnableVertexAttribArray(2);
 
@@ -364,7 +375,7 @@ void Renderer::remove_mesh(uint32_t mesh_id) {
     if (it != block_meshes.end()) {
         glDeleteVertexArrays(1, &it->second.vao);
         glDeleteBuffers(1, &it->second.vbo);
-        glDeleteBuffers(1, &it->second.ebo);
+        glDeleteBuffers(1, &it->second.fbo);
         block_meshes.erase(it);
     }
 }
@@ -420,7 +431,7 @@ void Renderer::render(uint64_t current_tick, const ViewCam& camera, float min_li
     
     for (auto& [mesh_id, gpu_mesh] : block_meshes) {
         glBindVertexArray(gpu_mesh.vao);
-        glDrawElements(GL_TRIANGLES, gpu_mesh.index_count, GL_UNSIGNED_INT, 0);
+        glDrawArrays(GL_TRIANGLES, 0, gpu_mesh.vertex_count);
     }
     
     glBindVertexArray(0);

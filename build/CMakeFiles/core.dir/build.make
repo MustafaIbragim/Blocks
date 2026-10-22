@@ -53,10 +53,10 @@ RM = /home/user/.local/lib/python3.8/site-packages/cmake/data/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/user/Документы/Blocks
+CMAKE_SOURCE_DIR = /home/user/Документы/Blocks/Original
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/user/Документы/Blocks/build
+CMAKE_BINARY_DIR = /home/user/Документы/Blocks/Original/build
 
 # Include any dependencies generated for this target.
 include CMakeFiles/core.dir/depend.make
@@ -70,116 +70,116 @@ include CMakeFiles/core.dir/progress.make
 include CMakeFiles/core.dir/flags.make
 
 CMakeFiles/core.dir/src/image.cpp.o: CMakeFiles/core.dir/flags.make
-CMakeFiles/core.dir/src/image.cpp.o: /home/user/Документы/Blocks/src/image.cpp
+CMakeFiles/core.dir/src/image.cpp.o: /home/user/Документы/Blocks/Original/src/image.cpp
 CMakeFiles/core.dir/src/image.cpp.o: CMakeFiles/core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/core.dir/src/image.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/image.cpp.o -MF CMakeFiles/core.dir/src/image.cpp.o.d -o CMakeFiles/core.dir/src/image.cpp.o -c /home/user/Документы/Blocks/src/image.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/core.dir/src/image.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/image.cpp.o -MF CMakeFiles/core.dir/src/image.cpp.o.d -o CMakeFiles/core.dir/src/image.cpp.o -c /home/user/Документы/Blocks/Original/src/image.cpp
 
 CMakeFiles/core.dir/src/image.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/core.dir/src/image.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/src/image.cpp > CMakeFiles/core.dir/src/image.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/Original/src/image.cpp > CMakeFiles/core.dir/src/image.cpp.i
 
 CMakeFiles/core.dir/src/image.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/core.dir/src/image.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/src/image.cpp -o CMakeFiles/core.dir/src/image.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/Original/src/image.cpp -o CMakeFiles/core.dir/src/image.cpp.s
 
 CMakeFiles/core.dir/src/texture.cpp.o: CMakeFiles/core.dir/flags.make
-CMakeFiles/core.dir/src/texture.cpp.o: /home/user/Документы/Blocks/src/texture.cpp
+CMakeFiles/core.dir/src/texture.cpp.o: /home/user/Документы/Blocks/Original/src/texture.cpp
 CMakeFiles/core.dir/src/texture.cpp.o: CMakeFiles/core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/core.dir/src/texture.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/texture.cpp.o -MF CMakeFiles/core.dir/src/texture.cpp.o.d -o CMakeFiles/core.dir/src/texture.cpp.o -c /home/user/Документы/Blocks/src/texture.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/core.dir/src/texture.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/texture.cpp.o -MF CMakeFiles/core.dir/src/texture.cpp.o.d -o CMakeFiles/core.dir/src/texture.cpp.o -c /home/user/Документы/Blocks/Original/src/texture.cpp
 
 CMakeFiles/core.dir/src/texture.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/core.dir/src/texture.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/src/texture.cpp > CMakeFiles/core.dir/src/texture.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/Original/src/texture.cpp > CMakeFiles/core.dir/src/texture.cpp.i
 
 CMakeFiles/core.dir/src/texture.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/core.dir/src/texture.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/src/texture.cpp -o CMakeFiles/core.dir/src/texture.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/Original/src/texture.cpp -o CMakeFiles/core.dir/src/texture.cpp.s
 
 CMakeFiles/core.dir/src/mesh.cpp.o: CMakeFiles/core.dir/flags.make
-CMakeFiles/core.dir/src/mesh.cpp.o: /home/user/Документы/Blocks/src/mesh.cpp
+CMakeFiles/core.dir/src/mesh.cpp.o: /home/user/Документы/Blocks/Original/src/mesh.cpp
 CMakeFiles/core.dir/src/mesh.cpp.o: CMakeFiles/core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/core.dir/src/mesh.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/mesh.cpp.o -MF CMakeFiles/core.dir/src/mesh.cpp.o.d -o CMakeFiles/core.dir/src/mesh.cpp.o -c /home/user/Документы/Blocks/src/mesh.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/core.dir/src/mesh.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/mesh.cpp.o -MF CMakeFiles/core.dir/src/mesh.cpp.o.d -o CMakeFiles/core.dir/src/mesh.cpp.o -c /home/user/Документы/Blocks/Original/src/mesh.cpp
 
 CMakeFiles/core.dir/src/mesh.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/core.dir/src/mesh.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/src/mesh.cpp > CMakeFiles/core.dir/src/mesh.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/Original/src/mesh.cpp > CMakeFiles/core.dir/src/mesh.cpp.i
 
 CMakeFiles/core.dir/src/mesh.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/core.dir/src/mesh.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/src/mesh.cpp -o CMakeFiles/core.dir/src/mesh.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/Original/src/mesh.cpp -o CMakeFiles/core.dir/src/mesh.cpp.s
 
 CMakeFiles/core.dir/src/block.cpp.o: CMakeFiles/core.dir/flags.make
-CMakeFiles/core.dir/src/block.cpp.o: /home/user/Документы/Blocks/src/block.cpp
+CMakeFiles/core.dir/src/block.cpp.o: /home/user/Документы/Blocks/Original/src/block.cpp
 CMakeFiles/core.dir/src/block.cpp.o: CMakeFiles/core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/core.dir/src/block.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/block.cpp.o -MF CMakeFiles/core.dir/src/block.cpp.o.d -o CMakeFiles/core.dir/src/block.cpp.o -c /home/user/Документы/Blocks/src/block.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/core.dir/src/block.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/block.cpp.o -MF CMakeFiles/core.dir/src/block.cpp.o.d -o CMakeFiles/core.dir/src/block.cpp.o -c /home/user/Документы/Blocks/Original/src/block.cpp
 
 CMakeFiles/core.dir/src/block.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/core.dir/src/block.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/src/block.cpp > CMakeFiles/core.dir/src/block.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/Original/src/block.cpp > CMakeFiles/core.dir/src/block.cpp.i
 
 CMakeFiles/core.dir/src/block.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/core.dir/src/block.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/src/block.cpp -o CMakeFiles/core.dir/src/block.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/Original/src/block.cpp -o CMakeFiles/core.dir/src/block.cpp.s
 
 CMakeFiles/core.dir/src/chunk.cpp.o: CMakeFiles/core.dir/flags.make
-CMakeFiles/core.dir/src/chunk.cpp.o: /home/user/Документы/Blocks/src/chunk.cpp
+CMakeFiles/core.dir/src/chunk.cpp.o: /home/user/Документы/Blocks/Original/src/chunk.cpp
 CMakeFiles/core.dir/src/chunk.cpp.o: CMakeFiles/core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/core.dir/src/chunk.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/chunk.cpp.o -MF CMakeFiles/core.dir/src/chunk.cpp.o.d -o CMakeFiles/core.dir/src/chunk.cpp.o -c /home/user/Документы/Blocks/src/chunk.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/core.dir/src/chunk.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/chunk.cpp.o -MF CMakeFiles/core.dir/src/chunk.cpp.o.d -o CMakeFiles/core.dir/src/chunk.cpp.o -c /home/user/Документы/Blocks/Original/src/chunk.cpp
 
 CMakeFiles/core.dir/src/chunk.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/core.dir/src/chunk.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/src/chunk.cpp > CMakeFiles/core.dir/src/chunk.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/Original/src/chunk.cpp > CMakeFiles/core.dir/src/chunk.cpp.i
 
 CMakeFiles/core.dir/src/chunk.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/core.dir/src/chunk.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/src/chunk.cpp -o CMakeFiles/core.dir/src/chunk.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/Original/src/chunk.cpp -o CMakeFiles/core.dir/src/chunk.cpp.s
 
 CMakeFiles/core.dir/src/chunk_mesher.cpp.o: CMakeFiles/core.dir/flags.make
-CMakeFiles/core.dir/src/chunk_mesher.cpp.o: /home/user/Документы/Blocks/src/chunk_mesher.cpp
+CMakeFiles/core.dir/src/chunk_mesher.cpp.o: /home/user/Документы/Blocks/Original/src/chunk_mesher.cpp
 CMakeFiles/core.dir/src/chunk_mesher.cpp.o: CMakeFiles/core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/core.dir/src/chunk_mesher.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/chunk_mesher.cpp.o -MF CMakeFiles/core.dir/src/chunk_mesher.cpp.o.d -o CMakeFiles/core.dir/src/chunk_mesher.cpp.o -c /home/user/Документы/Blocks/src/chunk_mesher.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/core.dir/src/chunk_mesher.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/chunk_mesher.cpp.o -MF CMakeFiles/core.dir/src/chunk_mesher.cpp.o.d -o CMakeFiles/core.dir/src/chunk_mesher.cpp.o -c /home/user/Документы/Blocks/Original/src/chunk_mesher.cpp
 
 CMakeFiles/core.dir/src/chunk_mesher.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/core.dir/src/chunk_mesher.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/src/chunk_mesher.cpp > CMakeFiles/core.dir/src/chunk_mesher.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/Original/src/chunk_mesher.cpp > CMakeFiles/core.dir/src/chunk_mesher.cpp.i
 
 CMakeFiles/core.dir/src/chunk_mesher.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/core.dir/src/chunk_mesher.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/src/chunk_mesher.cpp -o CMakeFiles/core.dir/src/chunk_mesher.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/Original/src/chunk_mesher.cpp -o CMakeFiles/core.dir/src/chunk_mesher.cpp.s
 
 CMakeFiles/core.dir/src/world.cpp.o: CMakeFiles/core.dir/flags.make
-CMakeFiles/core.dir/src/world.cpp.o: /home/user/Документы/Blocks/src/world.cpp
+CMakeFiles/core.dir/src/world.cpp.o: /home/user/Документы/Blocks/Original/src/world.cpp
 CMakeFiles/core.dir/src/world.cpp.o: CMakeFiles/core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/core.dir/src/world.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/world.cpp.o -MF CMakeFiles/core.dir/src/world.cpp.o.d -o CMakeFiles/core.dir/src/world.cpp.o -c /home/user/Документы/Blocks/src/world.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/core.dir/src/world.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/world.cpp.o -MF CMakeFiles/core.dir/src/world.cpp.o.d -o CMakeFiles/core.dir/src/world.cpp.o -c /home/user/Документы/Blocks/Original/src/world.cpp
 
 CMakeFiles/core.dir/src/world.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/core.dir/src/world.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/src/world.cpp > CMakeFiles/core.dir/src/world.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/Original/src/world.cpp > CMakeFiles/core.dir/src/world.cpp.i
 
 CMakeFiles/core.dir/src/world.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/core.dir/src/world.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/src/world.cpp -o CMakeFiles/core.dir/src/world.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/Original/src/world.cpp -o CMakeFiles/core.dir/src/world.cpp.s
 
 CMakeFiles/core.dir/src/input.cpp.o: CMakeFiles/core.dir/flags.make
-CMakeFiles/core.dir/src/input.cpp.o: /home/user/Документы/Blocks/src/input.cpp
+CMakeFiles/core.dir/src/input.cpp.o: /home/user/Документы/Blocks/Original/src/input.cpp
 CMakeFiles/core.dir/src/input.cpp.o: CMakeFiles/core.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/core.dir/src/input.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/input.cpp.o -MF CMakeFiles/core.dir/src/input.cpp.o.d -o CMakeFiles/core.dir/src/input.cpp.o -c /home/user/Документы/Blocks/src/input.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/core.dir/src/input.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/core.dir/src/input.cpp.o -MF CMakeFiles/core.dir/src/input.cpp.o.d -o CMakeFiles/core.dir/src/input.cpp.o -c /home/user/Документы/Blocks/Original/src/input.cpp
 
 CMakeFiles/core.dir/src/input.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/core.dir/src/input.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/src/input.cpp > CMakeFiles/core.dir/src/input.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/Original/src/input.cpp > CMakeFiles/core.dir/src/input.cpp.i
 
 CMakeFiles/core.dir/src/input.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/core.dir/src/input.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/src/input.cpp -o CMakeFiles/core.dir/src/input.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/Original/src/input.cpp -o CMakeFiles/core.dir/src/input.cpp.s
 
 # Object files for target core
 core_OBJECTS = \
@@ -195,22 +195,23 @@ core_OBJECTS = \
 # External object files for target core
 core_EXTERNAL_OBJECTS =
 
-/home/user/Документы/Blocks/lib/libcore.so: CMakeFiles/core.dir/src/image.cpp.o
-/home/user/Документы/Blocks/lib/libcore.so: CMakeFiles/core.dir/src/texture.cpp.o
-/home/user/Документы/Blocks/lib/libcore.so: CMakeFiles/core.dir/src/mesh.cpp.o
-/home/user/Документы/Blocks/lib/libcore.so: CMakeFiles/core.dir/src/block.cpp.o
-/home/user/Документы/Blocks/lib/libcore.so: CMakeFiles/core.dir/src/chunk.cpp.o
-/home/user/Документы/Blocks/lib/libcore.so: CMakeFiles/core.dir/src/chunk_mesher.cpp.o
-/home/user/Документы/Blocks/lib/libcore.so: CMakeFiles/core.dir/src/world.cpp.o
-/home/user/Документы/Blocks/lib/libcore.so: CMakeFiles/core.dir/src/input.cpp.o
-/home/user/Документы/Blocks/lib/libcore.so: CMakeFiles/core.dir/build.make
-/home/user/Документы/Blocks/lib/libcore.so: /home/user/Документы/Blocks/lib/libvec.so
-/home/user/Документы/Blocks/lib/libcore.so: CMakeFiles/core.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX shared library /home/user/Документы/Blocks/lib/libcore.so"
+/home/user/Документы/Blocks/Original/lib/libcore.so: CMakeFiles/core.dir/src/image.cpp.o
+/home/user/Документы/Blocks/Original/lib/libcore.so: CMakeFiles/core.dir/src/texture.cpp.o
+/home/user/Документы/Blocks/Original/lib/libcore.so: CMakeFiles/core.dir/src/mesh.cpp.o
+/home/user/Документы/Blocks/Original/lib/libcore.so: CMakeFiles/core.dir/src/block.cpp.o
+/home/user/Документы/Blocks/Original/lib/libcore.so: CMakeFiles/core.dir/src/chunk.cpp.o
+/home/user/Документы/Blocks/Original/lib/libcore.so: CMakeFiles/core.dir/src/chunk_mesher.cpp.o
+/home/user/Документы/Blocks/Original/lib/libcore.so: CMakeFiles/core.dir/src/world.cpp.o
+/home/user/Документы/Blocks/Original/lib/libcore.so: CMakeFiles/core.dir/src/input.cpp.o
+/home/user/Документы/Blocks/Original/lib/libcore.so: CMakeFiles/core.dir/build.make
+/home/user/Документы/Blocks/Original/lib/libcore.so: /home/user/Документы/Blocks/Original/lib/libvec.so
+/home/user/Документы/Blocks/Original/lib/libcore.so: /usr/lib/x86_64-linux-gnu/libglfw.so.3.3
+/home/user/Документы/Blocks/Original/lib/libcore.so: CMakeFiles/core.dir/link.txt
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX shared library /home/user/Документы/Blocks/Original/lib/libcore.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/core.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
-CMakeFiles/core.dir/build: /home/user/Документы/Blocks/lib/libcore.so
+CMakeFiles/core.dir/build: /home/user/Документы/Blocks/Original/lib/libcore.so
 .PHONY : CMakeFiles/core.dir/build
 
 CMakeFiles/core.dir/clean:
@@ -218,6 +219,6 @@ CMakeFiles/core.dir/clean:
 .PHONY : CMakeFiles/core.dir/clean
 
 CMakeFiles/core.dir/depend:
-	cd /home/user/Документы/Blocks/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/user/Документы/Blocks /home/user/Документы/Blocks /home/user/Документы/Blocks/build /home/user/Документы/Blocks/build /home/user/Документы/Blocks/build/CMakeFiles/core.dir/DependInfo.cmake "--color=$(COLOR)"
+	cd /home/user/Документы/Blocks/Original/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/user/Документы/Blocks/Original /home/user/Документы/Blocks/Original /home/user/Документы/Blocks/Original/build /home/user/Документы/Blocks/Original/build /home/user/Документы/Blocks/Original/build/CMakeFiles/core.dir/DependInfo.cmake "--color=$(COLOR)"
 .PHONY : CMakeFiles/core.dir/depend
 

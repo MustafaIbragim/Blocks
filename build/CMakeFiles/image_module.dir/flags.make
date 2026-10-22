@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = -Dimage_module_EXPORTS
 
-CXX_INCLUDES = -I/home/user/Документы/Blocks/include -isystem /home/user/.local/lib/python3.8/site-packages/pybind11/include -isystem /usr/include/python3.8
+CXX_INCLUDES = -I/home/user/Документы/Blocks/Original/include -isystem /home/user/.local/lib/python3.8/site-packages/pybind11/include -isystem /usr/include/python3.8
 
 CXX_FLAGS = -O3 -march=native -DNDEBUG -std=gnu++17 -fPIC -fvisibility=hidden -flto=auto -fno-fat-lto-objects
 

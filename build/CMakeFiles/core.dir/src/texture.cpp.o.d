@@ -1,7 +1,7 @@
 CMakeFiles/core.dir/src/texture.cpp.o: \
- /home/user/Документы/Blocks/src/texture.cpp \
+ /home/user/Документы/Blocks/Original/src/texture.cpp \
  /usr/include/stdc-predef.h \
- /home/user/Документы/Blocks/include/texture.h \
+ /home/user/Документы/Blocks/Original/include/texture.h \
  /usr/include/c++/9/cstdint \
  /usr/include/x86_64-linux-gnu/c++/9/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/9/bits/os_defines.h \
@@ -151,9 +151,9 @@ CMakeFiles/core.dir/src/texture.cpp.o: \
  /usr/include/c++/9/backward/auto_ptr.h \
  /usr/include/c++/9/pstl/glue_memory_defs.h \
  /usr/include/c++/9/pstl/execution_defs.h \
- /home/user/Документы/Blocks/include/image.h \
+ /home/user/Документы/Blocks/Original/include/image.h \
  /usr/include/c++/9/cstddef \
- /home/user/Документы/Blocks/include/vec.h \
+ /home/user/Документы/Blocks/Original/include/vec.h \
  /usr/include/c++/9/cmath /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \

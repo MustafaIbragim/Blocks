@@ -1,5 +1,5 @@
 CMakeFiles/world_module.dir/bindings/world_pybind.cpp.o: \
- /home/user/Документы/Blocks/bindings/world_pybind.cpp \
+ /home/user/Документы/Blocks/Original/bindings/world_pybind.cpp \
  /usr/include/stdc-predef.h \
  /home/user/.local/lib/python3.8/site-packages/pybind11/include/pybind11/pybind11.h \
  /home/user/.local/lib/python3.8/site-packages/pybind11/include/pybind11/detail/class.h \
@@ -357,10 +357,10 @@ CMakeFiles/world_module.dir/bindings/world_pybind.cpp.o: \
  /usr/include/c++/9/bits/gslice.h /usr/include/c++/9/bits/gslice_array.h \
  /usr/include/c++/9/bits/mask_array.h \
  /usr/include/c++/9/bits/indirect_array.h /usr/include/c++/9/variant \
- /home/user/Документы/Blocks/include/world.h \
- /home/user/Документы/Blocks/include/vec.h \
- /home/user/Документы/Blocks/include/chunk.h \
- /home/user/Документы/Blocks/include/block.h \
- /home/user/Документы/Blocks/include/mesh.h \
- /home/user/Документы/Blocks/include/texture.h \
- /home/user/Документы/Blocks/include/image.h
+ /home/user/Документы/Blocks/Original/include/world.h \
+ /home/user/Документы/Blocks/Original/include/vec.h \
+ /home/user/Документы/Blocks/Original/include/chunk.h \
+ /home/user/Документы/Blocks/Original/include/block.h \
+ /home/user/Документы/Blocks/Original/include/mesh.h \
+ /home/user/Документы/Blocks/Original/include/texture.h \
+ /home/user/Документы/Blocks/Original/include/image.h

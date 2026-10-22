@@ -53,10 +53,10 @@ RM = /home/user/.local/lib/python3.8/site-packages/cmake/data/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/user/Документы/Blocks
+CMAKE_SOURCE_DIR = /home/user/Документы/Blocks/Original
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/user/Документы/Blocks/build
+CMAKE_BINARY_DIR = /home/user/Документы/Blocks/Original/build
 
 # Include any dependencies generated for this target.
 include CMakeFiles/vec_module.dir/depend.make
@@ -70,18 +70,18 @@ include CMakeFiles/vec_module.dir/progress.make
 include CMakeFiles/vec_module.dir/flags.make
 
 CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o: CMakeFiles/vec_module.dir/flags.make
-CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o: /home/user/Документы/Blocks/bindings/vec_pybind.cpp
+CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o: /home/user/Документы/Blocks/Original/bindings/vec_pybind.cpp
 CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o: CMakeFiles/vec_module.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o -MF CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o.d -o CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o -c /home/user/Документы/Blocks/bindings/vec_pybind.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o -MF CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o.d -o CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o -c /home/user/Документы/Blocks/Original/bindings/vec_pybind.cpp
 
 CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/bindings/vec_pybind.cpp > CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/user/Документы/Blocks/Original/bindings/vec_pybind.cpp > CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.i
 
 CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/bindings/vec_pybind.cpp -o CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/user/Документы/Blocks/Original/bindings/vec_pybind.cpp -o CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.s
 
 # Object files for target vec_module
 vec_module_OBJECTS = \
@@ -90,16 +90,16 @@ vec_module_OBJECTS = \
 # External object files for target vec_module
 vec_module_EXTERNAL_OBJECTS =
 
-/home/user/Документы/Blocks/python/vec_module.cpython-38-x86_64-linux-gnu.so: CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o
-/home/user/Документы/Blocks/python/vec_module.cpython-38-x86_64-linux-gnu.so: CMakeFiles/vec_module.dir/build.make
-/home/user/Документы/Blocks/python/vec_module.cpython-38-x86_64-linux-gnu.so: /home/user/Документы/Blocks/lib/libvec.so
-/home/user/Документы/Blocks/python/vec_module.cpython-38-x86_64-linux-gnu.so: CMakeFiles/vec_module.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX shared module /home/user/Документы/Blocks/python/vec_module.cpython-38-x86_64-linux-gnu.so"
+/home/user/Документы/Blocks/Original/python/vec_module.cpython-38-x86_64-linux-gnu.so: CMakeFiles/vec_module.dir/bindings/vec_pybind.cpp.o
+/home/user/Документы/Blocks/Original/python/vec_module.cpython-38-x86_64-linux-gnu.so: CMakeFiles/vec_module.dir/build.make
+/home/user/Документы/Blocks/Original/python/vec_module.cpython-38-x86_64-linux-gnu.so: /home/user/Документы/Blocks/Original/lib/libvec.so
+/home/user/Документы/Blocks/Original/python/vec_module.cpython-38-x86_64-linux-gnu.so: CMakeFiles/vec_module.dir/link.txt
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX shared module /home/user/Документы/Blocks/Original/python/vec_module.cpython-38-x86_64-linux-gnu.so"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/vec_module.dir/link.txt --verbose=$(VERBOSE)
-	/usr/bin/strip /home/user/Документы/Blocks/python/vec_module.cpython-38-x86_64-linux-gnu.so
+	/usr/bin/strip /home/user/Документы/Blocks/Original/python/vec_module.cpython-38-x86_64-linux-gnu.so
 
 # Rule to build all files generated by this target.
-CMakeFiles/vec_module.dir/build: /home/user/Документы/Blocks/python/vec_module.cpython-38-x86_64-linux-gnu.so
+CMakeFiles/vec_module.dir/build: /home/user/Документы/Blocks/Original/python/vec_module.cpython-38-x86_64-linux-gnu.so
 .PHONY : CMakeFiles/vec_module.dir/build
 
 CMakeFiles/vec_module.dir/clean:
@@ -107,6 +107,6 @@ CMakeFiles/vec_module.dir/clean:
 .PHONY : CMakeFiles/vec_module.dir/clean
 
 CMakeFiles/vec_module.dir/depend:
-	cd /home/user/Документы/Blocks/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/user/Документы/Blocks /home/user/Документы/Blocks /home/user/Документы/Blocks/build /home/user/Документы/Blocks/build /home/user/Документы/Blocks/build/CMakeFiles/vec_module.dir/DependInfo.cmake "--color=$(COLOR)"
+	cd /home/user/Документы/Blocks/Original/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/user/Документы/Blocks/Original /home/user/Документы/Blocks/Original /home/user/Документы/Blocks/Original/build /home/user/Документы/Blocks/Original/build /home/user/Документы/Blocks/Original/build/CMakeFiles/vec_module.dir/DependInfo.cmake "--color=$(COLOR)"
 .PHONY : CMakeFiles/vec_module.dir/depend
 

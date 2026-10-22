@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/user/Документы/Blocks/bindings/texture_pybind.cpp" "CMakeFiles/texture_module.dir/bindings/texture_pybind.cpp.o" "gcc" "CMakeFiles/texture_module.dir/bindings/texture_pybind.cpp.o.d"
+  "/home/user/Документы/Blocks/Original/bindings/texture_pybind.cpp" "CMakeFiles/texture_module.dir/bindings/texture_pybind.cpp.o" "gcc" "CMakeFiles/texture_module.dir/bindings/texture_pybind.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

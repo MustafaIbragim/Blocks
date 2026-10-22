@@ -40,7 +40,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/home/user/.local/lib/python3.8/site-packages/pybind11/share/cmake/pybind11/pybind11ConfigVersion.cmake"
   "/home/user/.local/lib/python3.8/site-packages/pybind11/share/cmake/pybind11/pybind11Targets.cmake"
   "/home/user/.local/lib/python3.8/site-packages/pybind11/share/cmake/pybind11/pybind11Tools.cmake"
-  "/home/user/Документы/Blocks/CMakeLists.txt"
+  "/home/user/Документы/Blocks/Original/CMakeLists.txt"
   "CMakeFiles/3.30.3/CMakeCCompiler.cmake"
   "CMakeFiles/3.30.3/CMakeCXXCompiler.cmake"
   "CMakeFiles/3.30.3/CMakeSystem.cmake"

@@ -8,14 +8,14 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/user/Документы/Blocks/src/block.cpp" "CMakeFiles/core.dir/src/block.cpp.o" "gcc" "CMakeFiles/core.dir/src/block.cpp.o.d"
-  "/home/user/Документы/Blocks/src/chunk.cpp" "CMakeFiles/core.dir/src/chunk.cpp.o" "gcc" "CMakeFiles/core.dir/src/chunk.cpp.o.d"
-  "/home/user/Документы/Blocks/src/chunk_mesher.cpp" "CMakeFiles/core.dir/src/chunk_mesher.cpp.o" "gcc" "CMakeFiles/core.dir/src/chunk_mesher.cpp.o.d"
-  "/home/user/Документы/Blocks/src/image.cpp" "CMakeFiles/core.dir/src/image.cpp.o" "gcc" "CMakeFiles/core.dir/src/image.cpp.o.d"
-  "/home/user/Документы/Blocks/src/input.cpp" "CMakeFiles/core.dir/src/input.cpp.o" "gcc" "CMakeFiles/core.dir/src/input.cpp.o.d"
-  "/home/user/Документы/Blocks/src/mesh.cpp" "CMakeFiles/core.dir/src/mesh.cpp.o" "gcc" "CMakeFiles/core.dir/src/mesh.cpp.o.d"
-  "/home/user/Документы/Blocks/src/texture.cpp" "CMakeFiles/core.dir/src/texture.cpp.o" "gcc" "CMakeFiles/core.dir/src/texture.cpp.o.d"
-  "/home/user/Документы/Blocks/src/world.cpp" "CMakeFiles/core.dir/src/world.cpp.o" "gcc" "CMakeFiles/core.dir/src/world.cpp.o.d"
+  "/home/user/Документы/Blocks/Original/src/block.cpp" "CMakeFiles/core.dir/src/block.cpp.o" "gcc" "CMakeFiles/core.dir/src/block.cpp.o.d"
+  "/home/user/Документы/Blocks/Original/src/chunk.cpp" "CMakeFiles/core.dir/src/chunk.cpp.o" "gcc" "CMakeFiles/core.dir/src/chunk.cpp.o.d"
+  "/home/user/Документы/Blocks/Original/src/chunk_mesher.cpp" "CMakeFiles/core.dir/src/chunk_mesher.cpp.o" "gcc" "CMakeFiles/core.dir/src/chunk_mesher.cpp.o.d"
+  "/home/user/Документы/Blocks/Original/src/image.cpp" "CMakeFiles/core.dir/src/image.cpp.o" "gcc" "CMakeFiles/core.dir/src/image.cpp.o.d"
+  "/home/user/Документы/Blocks/Original/src/input.cpp" "CMakeFiles/core.dir/src/input.cpp.o" "gcc" "CMakeFiles/core.dir/src/input.cpp.o.d"
+  "/home/user/Документы/Blocks/Original/src/mesh.cpp" "CMakeFiles/core.dir/src/mesh.cpp.o" "gcc" "CMakeFiles/core.dir/src/mesh.cpp.o.d"
+  "/home/user/Документы/Blocks/Original/src/texture.cpp" "CMakeFiles/core.dir/src/texture.cpp.o" "gcc" "CMakeFiles/core.dir/src/texture.cpp.o.d"
+  "/home/user/Документы/Blocks/Original/src/world.cpp" "CMakeFiles/core.dir/src/world.cpp.o" "gcc" "CMakeFiles/core.dir/src/world.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

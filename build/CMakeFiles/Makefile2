@@ -54,10 +54,10 @@ RM = /home/user/.local/lib/python3.8/site-packages/cmake/data/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/user/Документы/Blocks
+CMAKE_SOURCE_DIR = /home/user/Документы/Blocks/Original
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/user/Документы/Blocks/build
+CMAKE_BINARY_DIR = /home/user/Документы/Blocks/Original/build
 
 #=============================================================================
 # Directory level rules for the build root directory
@@ -107,14 +107,14 @@ clean: CMakeFiles/renderer_module.dir/clean
 CMakeFiles/glad.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/glad.dir/build.make CMakeFiles/glad.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/glad.dir/build.make CMakeFiles/glad.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=16,17 "Built target glad"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=16,17 "Built target glad"
 .PHONY : CMakeFiles/glad.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/glad.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 2
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/glad.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/glad.dir/rule
 
 # Convenience name for target.
@@ -133,14 +133,14 @@ CMakeFiles/glad.dir/clean:
 CMakeFiles/vec.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vec.dir/build.make CMakeFiles/vec.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vec.dir/build.make CMakeFiles/vec.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=30,31 "Built target vec"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=30,31 "Built target vec"
 .PHONY : CMakeFiles/vec.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/vec.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 2
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/vec.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/vec.dir/rule
 
 # Convenience name for target.
@@ -159,14 +159,14 @@ CMakeFiles/vec.dir/clean:
 CMakeFiles/core.dir/all: CMakeFiles/vec.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/core.dir/build.make CMakeFiles/core.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/core.dir/build.make CMakeFiles/core.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=7,8,9,10,11,12,13,14,15 "Built target core"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=7,8,9,10,11,12,13,14,15 "Built target core"
 .PHONY : CMakeFiles/core.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/core.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 11
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/core.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/core.dir/rule
 
 # Convenience name for target.
@@ -185,14 +185,14 @@ CMakeFiles/core.dir/clean:
 CMakeFiles/vec_module.dir/all: CMakeFiles/vec.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vec_module.dir/build.make CMakeFiles/vec_module.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/vec_module.dir/build.make CMakeFiles/vec_module.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=32,33 "Built target vec_module"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=32,33 "Built target vec_module"
 .PHONY : CMakeFiles/vec_module.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/vec_module.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 4
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 4
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/vec_module.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/vec_module.dir/rule
 
 # Convenience name for target.
@@ -212,14 +212,14 @@ CMakeFiles/image_module.dir/all: CMakeFiles/vec.dir/all
 CMakeFiles/image_module.dir/all: CMakeFiles/core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_module.dir/build.make CMakeFiles/image_module.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/image_module.dir/build.make CMakeFiles/image_module.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=18,19 "Built target image_module"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=18,19 "Built target image_module"
 .PHONY : CMakeFiles/image_module.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/image_module.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 13
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/image_module.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/image_module.dir/rule
 
 # Convenience name for target.
@@ -239,14 +239,14 @@ CMakeFiles/texture_module.dir/all: CMakeFiles/vec.dir/all
 CMakeFiles/texture_module.dir/all: CMakeFiles/core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/texture_module.dir/build.make CMakeFiles/texture_module.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/texture_module.dir/build.make CMakeFiles/texture_module.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=28,29 "Built target texture_module"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=28,29 "Built target texture_module"
 .PHONY : CMakeFiles/texture_module.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/texture_module.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 13
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/texture_module.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/texture_module.dir/rule
 
 # Convenience name for target.
@@ -266,14 +266,14 @@ CMakeFiles/mesh_module.dir/all: CMakeFiles/vec.dir/all
 CMakeFiles/mesh_module.dir/all: CMakeFiles/core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/mesh_module.dir/build.make CMakeFiles/mesh_module.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/mesh_module.dir/build.make CMakeFiles/mesh_module.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=22,23 "Built target mesh_module"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=22,23 "Built target mesh_module"
 .PHONY : CMakeFiles/mesh_module.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/mesh_module.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 13
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/mesh_module.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/mesh_module.dir/rule
 
 # Convenience name for target.
@@ -293,14 +293,14 @@ CMakeFiles/block_module.dir/all: CMakeFiles/vec.dir/all
 CMakeFiles/block_module.dir/all: CMakeFiles/core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/block_module.dir/build.make CMakeFiles/block_module.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/block_module.dir/build.make CMakeFiles/block_module.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=1,2 "Built target block_module"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=1,2 "Built target block_module"
 .PHONY : CMakeFiles/block_module.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/block_module.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 13
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/block_module.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/block_module.dir/rule
 
 # Convenience name for target.
@@ -320,14 +320,14 @@ CMakeFiles/chunk_module.dir/all: CMakeFiles/vec.dir/all
 CMakeFiles/chunk_module.dir/all: CMakeFiles/core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/chunk_module.dir/build.make CMakeFiles/chunk_module.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/chunk_module.dir/build.make CMakeFiles/chunk_module.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=5,6 "Built target chunk_module"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=5,6 "Built target chunk_module"
 .PHONY : CMakeFiles/chunk_module.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/chunk_module.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 13
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/chunk_module.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/chunk_module.dir/rule
 
 # Convenience name for target.
@@ -347,14 +347,14 @@ CMakeFiles/chunk_mesher_module.dir/all: CMakeFiles/vec.dir/all
 CMakeFiles/chunk_mesher_module.dir/all: CMakeFiles/core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/chunk_mesher_module.dir/build.make CMakeFiles/chunk_mesher_module.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/chunk_mesher_module.dir/build.make CMakeFiles/chunk_mesher_module.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=3,4 "Built target chunk_mesher_module"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=3,4 "Built target chunk_mesher_module"
 .PHONY : CMakeFiles/chunk_mesher_module.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/chunk_mesher_module.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 13
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/chunk_mesher_module.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/chunk_mesher_module.dir/rule
 
 # Convenience name for target.
@@ -374,14 +374,14 @@ CMakeFiles/world_module.dir/all: CMakeFiles/vec.dir/all
 CMakeFiles/world_module.dir/all: CMakeFiles/core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/world_module.dir/build.make CMakeFiles/world_module.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/world_module.dir/build.make CMakeFiles/world_module.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=34,35 "Built target world_module"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=34,35 "Built target world_module"
 .PHONY : CMakeFiles/world_module.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/world_module.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 13
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/world_module.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/world_module.dir/rule
 
 # Convenience name for target.
@@ -401,14 +401,14 @@ CMakeFiles/input_module.dir/all: CMakeFiles/vec.dir/all
 CMakeFiles/input_module.dir/all: CMakeFiles/core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/input_module.dir/build.make CMakeFiles/input_module.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/input_module.dir/build.make CMakeFiles/input_module.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=20,21 "Built target input_module"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=20,21 "Built target input_module"
 .PHONY : CMakeFiles/input_module.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/input_module.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 13
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 13
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/input_module.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/input_module.dir/rule
 
 # Convenience name for target.
@@ -429,14 +429,14 @@ CMakeFiles/renderer.dir/all: CMakeFiles/vec.dir/all
 CMakeFiles/renderer.dir/all: CMakeFiles/core.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/renderer.dir/build.make CMakeFiles/renderer.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/renderer.dir/build.make CMakeFiles/renderer.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=24,25 "Built target renderer"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=24,25 "Built target renderer"
 .PHONY : CMakeFiles/renderer.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/renderer.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 15
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 15
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/renderer.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/renderer.dir/rule
 
 # Convenience name for target.
@@ -458,14 +458,14 @@ CMakeFiles/renderer_module.dir/all: CMakeFiles/core.dir/all
 CMakeFiles/renderer_module.dir/all: CMakeFiles/renderer.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/renderer_module.dir/build.make CMakeFiles/renderer_module.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/renderer_module.dir/build.make CMakeFiles/renderer_module.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/build/CMakeFiles --progress-num=26,27 "Built target renderer_module"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/user/Документы/Blocks/Original/build/CMakeFiles --progress-num=26,27 "Built target renderer_module"
 .PHONY : CMakeFiles/renderer_module.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/renderer_module.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 17
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 17
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/renderer_module.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/user/Документы/Blocks/Original/build/CMakeFiles 0
 .PHONY : CMakeFiles/renderer_module.dir/rule
 
 # Convenience name for target.

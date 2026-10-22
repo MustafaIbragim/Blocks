@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/user/Документы/Blocks/lib/libvec.pdb"
-  "/home/user/Документы/Blocks/lib/libvec.so"
+  "/home/user/Документы/Blocks/Original/lib/libvec.pdb"
+  "/home/user/Документы/Blocks/Original/lib/libvec.so"
   "CMakeFiles/vec.dir/src/vec.cpp.o"
   "CMakeFiles/vec.dir/src/vec.cpp.o.d"
 )

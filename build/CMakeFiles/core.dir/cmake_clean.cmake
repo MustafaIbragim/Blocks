@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/user/Документы/Blocks/lib/libcore.pdb"
-  "/home/user/Документы/Blocks/lib/libcore.so"
+  "/home/user/Документы/Blocks/Original/lib/libcore.pdb"
+  "/home/user/Документы/Blocks/Original/lib/libcore.so"
   "CMakeFiles/core.dir/src/block.cpp.o"
   "CMakeFiles/core.dir/src/block.cpp.o.d"
   "CMakeFiles/core.dir/src/chunk.cpp.o"

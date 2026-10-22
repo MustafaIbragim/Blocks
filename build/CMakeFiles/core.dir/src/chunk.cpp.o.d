@@ -1,7 +1,7 @@
 CMakeFiles/core.dir/src/chunk.cpp.o: \
- /home/user/Документы/Blocks/src/chunk.cpp \
+ /home/user/Документы/Blocks/Original/src/chunk.cpp \
  /usr/include/stdc-predef.h \
- /home/user/Документы/Blocks/include/chunk.h \
+ /home/user/Документы/Blocks/Original/include/chunk.h \
  /usr/include/c++/9/cstdint \
  /usr/include/x86_64-linux-gnu/c++/9/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/9/bits/os_defines.h \
@@ -152,7 +152,7 @@ CMakeFiles/core.dir/src/chunk.cpp.o: \
  /usr/include/c++/9/backward/auto_ptr.h \
  /usr/include/c++/9/pstl/glue_memory_defs.h \
  /usr/include/c++/9/pstl/execution_defs.h \
- /home/user/Документы/Blocks/include/vec.h \
+ /home/user/Документы/Blocks/Original/include/vec.h \
  /usr/include/c++/9/cmath /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
@@ -176,8 +176,8 @@ CMakeFiles/core.dir/src/chunk.cpp.o: \
  /usr/include/c++/9/tr1/poly_hermite.tcc \
  /usr/include/c++/9/tr1/poly_laguerre.tcc \
  /usr/include/c++/9/tr1/riemann_zeta.tcc \
- /home/user/Документы/Blocks/include/block.h \
- /home/user/Документы/Blocks/include/mesh.h \
+ /home/user/Документы/Blocks/Original/include/block.h \
+ /home/user/Документы/Blocks/Original/include/mesh.h \
  /usr/include/c++/9/algorithm /usr/include/c++/9/bits/stl_algo.h \
  /usr/include/c++/9/bits/algorithmfwd.h \
  /usr/include/c++/9/bits/stl_heap.h \

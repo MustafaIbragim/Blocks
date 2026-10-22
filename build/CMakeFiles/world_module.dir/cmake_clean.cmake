@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/user/Документы/Blocks/python/world_module.cpython-38-x86_64-linux-gnu.so"
-  "/home/user/Документы/Blocks/python/world_module.pdb"
+  "/home/user/Документы/Blocks/Original/python/world_module.cpython-38-x86_64-linux-gnu.so"
+  "/home/user/Документы/Blocks/Original/python/world_module.pdb"
   "CMakeFiles/world_module.dir/bindings/world_pybind.cpp.o"
   "CMakeFiles/world_module.dir/bindings/world_pybind.cpp.o.d"
 )

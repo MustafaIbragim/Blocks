@@ -1,7 +1,7 @@
 CMakeFiles/vec.dir/src/vec.cpp.o: \
- /home/user/Документы/Blocks/src/vec.cpp \
+ /home/user/Документы/Blocks/Original/src/vec.cpp \
  /usr/include/stdc-predef.h \
- /home/user/Документы/Blocks/include/vec.h \
+ /home/user/Документы/Blocks/Original/include/vec.h \
  /usr/include/c++/9/cstdint \
  /usr/include/x86_64-linux-gnu/c++/9/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/9/bits/os_defines.h \

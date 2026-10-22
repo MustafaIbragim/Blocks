@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "/home/user/Документы/Blocks/python/chunk_module.cpython-38-x86_64-linux-gnu.so"
-  "/home/user/Документы/Blocks/python/chunk_module.pdb"
+  "/home/user/Документы/Blocks/Original/python/chunk_module.cpython-38-x86_64-linux-gnu.so"
+  "/home/user/Документы/Blocks/Original/python/chunk_module.pdb"
   "CMakeFiles/chunk_module.dir/bindings/chunk_pybind.cpp.o"
   "CMakeFiles/chunk_module.dir/bindings/chunk_pybind.cpp.o.d"
 )

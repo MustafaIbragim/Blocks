@@ -1,7 +1,7 @@
 CMakeFiles/core.dir/src/input.cpp.o: \
- /home/user/Документы/Blocks/src/input.cpp \
+ /home/user/Документы/Blocks/Original/src/input.cpp \
  /usr/include/stdc-predef.h \
- /home/user/Документы/Blocks/include/input.h \
+ /home/user/Документы/Blocks/Original/include/input.h \
  /usr/include/c++/9/cstdint \
  /usr/include/x86_64-linux-gnu/c++/9/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/9/bits/os_defines.h \
