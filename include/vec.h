@@ -357,17 +357,31 @@ public:
     Vec4u8 to_u8() const;
 };
 
+// Вершина хранит только позицию и освещение.
+// UV-координаты и данные текстуры вынесены в FaceData (см. mesh.h),
+// что позволяет переиспользовать одни и те же вершины для разных граней.
 #pragma pack(push, 1)
 struct Vertex {
-    float x, y, z;
-    float u, v;
-    int32_t layer;
-    uint8_t anim_data;
+    float x, y, z;      // позиция
     uint8_t block_light;
     uint8_t sky_light;
-    uint8_t padding;
+    uint16_t padding;   // выравнивание до 16 байт
 };
 #pragma pack(pop)
+static_assert(sizeof(Vertex) == 16, "Vertex must be 16 bytes");
+
+// Данные грани: UV-координаты трёх вершин треугольника + привязка к текстуре.
+// Хранится отдельно от вершин; индекс i в массиве faces соответствует
+// треугольнику indices[3*i], indices[3*i+1], indices[3*i+2].
+#pragma pack(push, 1)
+struct FaceData {
+    float u_0, u_1, u_2;
+    float v_0, v_1, v_2;
+    int32_t layer;      // слой в массиве текстур
+    uint32_t anim_data; // для анимации достаточно 8 бит, 32 бита — подгонка до 16 байт
+};
+#pragma pack(pop)
+static_assert(sizeof(FaceData) == 32, "FaceData must be 32 bytes");
 
 class Transform {
 public:

@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <iostream>
 #include <cmath>
+#include <algorithm>
+#include <vector>
 
 
 Renderer::Renderer() 
@@ -54,6 +56,7 @@ void Renderer::cleanup() {
             glDeleteVertexArrays(1, &mesh.vao);
             glDeleteBuffers(1, &mesh.vbo);
             glDeleteBuffers(1, &mesh.ebo);
+            glDeleteBuffers(1, &mesh.fbo);
         }
         block_meshes.clear();
         
@@ -112,32 +115,33 @@ uint32_t Renderer::compile_shader(uint32_t type, const std::string& source) {
 
 void Renderer::compile_shaders() {
     // ===== Шейдер для блоков (array texture + анимация) =====
+    // Данные грани (uv/layer/anim) подаются отдельным атрибутом из буфера faces:
+    // на каждый угол треугольника — своя запись с uv этого угла.
     std::string block_vertex_source = R"(
         #version 330 core
         layout(location = 0) in vec3 aPos;
-        layout(location = 1) in vec2 aUV;
-        layout(location = 2) in int aLayer;
-        layout(location = 3) in uint aAnimData;
-        layout(location = 4) in uint aBlockLight;
-        layout(location = 5) in uint aSkyLight;
-        
+        layout(location = 1) in uint aBlockLight;
+        layout(location = 2) in vec2 aFaceUV;
+        layout(location = 3) in int aLayer;
+        layout(location = 4) in uint aAnimData;
+
         out vec2 vUV;
         flat out int vLayer;
         flat out uint vAnimData;
         out float vBlockLight;
-        
+
         uniform mat4 uView;
         uniform mat4 uProjection;
-        
+
         void main() {
             gl_Position = uProjection * uView * vec4(aPos, 1.0);
-            vUV = aUV;
+            vUV = aFaceUV;
             vLayer = aLayer;
             vAnimData = aAnimData;
             vBlockLight = float(aBlockLight) / 255.0;
         }
     )";
-    
+
     std::string block_fragment_source = R"(
         #version 330 core
         in vec2 vUV;
@@ -297,46 +301,61 @@ void Renderer::remove_texture(uint32_t texture_id) {
 
 void Renderer::upload_mesh(uint32_t mesh_id, const Mesh& mesh) {
     remove_mesh(mesh_id);
-    
-    GPUMesh gpu_mesh;
-    gpu_mesh.vertex_count = static_cast<uint32_t>(mesh.vertex_count());
-    gpu_mesh.index_count = static_cast<uint32_t>(mesh.index_count());
-    
+
+    GPUMesh gpu_mesh{};
+    gpu_mesh.vertex_count = static_cast<uint32_t>(mesh.vertices.size());
+    gpu_mesh.index_count = static_cast<uint32_t>(mesh.indices.size());
+
     glGenVertexArrays(1, &gpu_mesh.vao);
     glGenBuffers(1, &gpu_mesh.vbo);
     glGenBuffers(1, &gpu_mesh.ebo);
-    
+    glGenBuffers(1, &gpu_mesh.fbo);
+
     glBindVertexArray(gpu_mesh.vao);
-    
+
+    // Вербюфер: Vertex = 16 байт (vec3 pos + uint8 block_light + uint8 sky_light + uint16 padding)
     glBindBuffer(GL_ARRAY_BUFFER, gpu_mesh.vbo);
-    // ИСПРАВЛЕНО: sizeof(Vertex) вместо sizeof(float)
-    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(Vertex), 
+    glBufferData(GL_ARRAY_BUFFER, mesh.vertices.size() * sizeof(Vertex),
                  mesh.vertices.data(), GL_STATIC_DRAW);
-    
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribIPointer(1, 1, GL_UNSIGNED_BYTE, sizeof(Vertex), (void*)12);
+    glEnableVertexAttribArray(1);
+
+    // EBO — индексы вершин треугольников
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpu_mesh.ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(uint32_t),
                  mesh.indices.data(), GL_STATIC_DRAW);
-    
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 28, (void*)0);
-    glEnableVertexAttribArray(0);
-    
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 28, (void*)12);
-    glEnableVertexAttribArray(1);
-    
-    glVertexAttribIPointer(2, 1, GL_INT, 28, (void*)20);
+
+    // Буфер граней: на каждый треугольник 3 записи по 16 байт
+    // (u_i, v_i, layer, anim_data) — i-й записи соответствует i-я вершина треугольника.
+    std::vector<GPUFaceAttr> face_attrs;
+    face_attrs.reserve(mesh.faces.size() * 3);
+    for (const FaceData& fd : mesh.faces) {
+        face_attrs.push_back({fd.u_0, fd.v_0, fd.layer, fd.anim_data});
+        face_attrs.push_back({fd.u_1, fd.v_1, fd.layer, fd.anim_data});
+        face_attrs.push_back({fd.u_2, fd.v_2, fd.layer, fd.anim_data});
+    }
+
+    glBindBuffer(GL_ARRAY_BUFFER, gpu_mesh.fbo);
+    glBufferData(GL_ARRAY_BUFFER, face_attrs.size() * sizeof(GPUFaceAttr),
+                 face_attrs.data(), GL_STATIC_DRAW);
+
+    // В буфере faces на каждую вершину рисуемых треугольников своя запись
+    // (uv этого угла + layer/anim грани), шаг атрибута = 1 вершина.
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(GPUFaceAttr), (void*)0);
     glEnableVertexAttribArray(2);
-    
-    glVertexAttribIPointer(3, 1, GL_UNSIGNED_BYTE, 28, (void*)24);
+
+    glVertexAttribIPointer(3, 1, GL_INT, sizeof(GPUFaceAttr), (void*)8);
     glEnableVertexAttribArray(3);
-    
-    glVertexAttribIPointer(4, 1, GL_UNSIGNED_BYTE, 28, (void*)25);
+
+    glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, sizeof(GPUFaceAttr), (void*)12);
     glEnableVertexAttribArray(4);
-    
-    glVertexAttribIPointer(5, 1, GL_UNSIGNED_BYTE, 28, (void*)26);
-    glEnableVertexAttribArray(5);
-    
+
     glBindVertexArray(0);
-    
+
     block_meshes[mesh_id] = gpu_mesh;
 }
 
