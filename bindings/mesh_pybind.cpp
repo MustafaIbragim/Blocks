@@ -11,20 +11,12 @@ PYBIND11_MODULE(mesh_module, m) {
 
     m.doc() = "Mesh module";
 
-    py::class_<FaceData>(m, "FaceData")
-        .def(py::init<>())
-        .def_readwrite("u_0", &FaceData::u_0)
-        .def_readwrite("u_1", &FaceData::u_1)
-        .def_readwrite("u_2", &FaceData::u_2)
-        .def_readwrite("v_0", &FaceData::v_0)
-        .def_readwrite("v_1", &FaceData::v_1)
-        .def_readwrite("v_2", &FaceData::v_2)
-        .def_readwrite("layer", &FaceData::layer)
-        .def_readwrite("anim_data", &FaceData::anim_data)
-        .def("__repr__", [](const FaceData& f) {
-            return "FaceData(layer=" + std::to_string(f.layer) +
-                   ", anim_data=" + std::to_string(f.anim_data) + ")";
-        });
+    // NB: FaceData регистрируется в vec_module (см. bindings/vec_pybind.cpp).
+    // Повторная регистрация того же C++ типа в другом модуле привела бы к
+    // ошибке pybind11: generic_type: type "FaceData" is already registered!
+    // Здесь делаем его доступным под именем mesh_module.FaceData для удобства.
+    py::object FaceDataPy = py::module_::import("vec_module").attr("FaceData");
+    m.attr("FaceData") = FaceDataPy;
 
     py::class_<Mesh, std::shared_ptr<Mesh>>(m, "Mesh")
         .def(py::init<>())
