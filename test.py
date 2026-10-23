@@ -311,6 +311,9 @@ def test_renderer():
     fps_counter = 0
     fps_time = 0.0
     
+    del_blosk = 0.0
+    set_blosk = 0.0
+    
     while not renderer.should_close():
         current_time = time.time()
         dt = current_time - last_time
@@ -380,35 +383,37 @@ def test_renderer():
         
         # Q - сломать блок
         if input_mgr.is_key_pressed(GLFW_KEY_Q):
-            forward = create_forward(camera)
-            hit_pos, hit_normal = raycast_voxel(world, camera.position, forward, max_distance=8.0)
-            if hit_pos is not None:
-                world.remove_block(hit_pos)
-                update_block_and_mesh(world, renderer, hit_pos)
-                print(f"\n  Блок удалён в ({hit_pos.x}, {hit_pos.y}, {hit_pos.z})")
+            if del_blosk < time.time() -0.25:
+                forward = create_forward(camera)
+                hit_pos, hit_normal = raycast_voxel(world, camera.position, forward, max_distance=8.0)
+                if hit_pos is not None:
+                    world.remove_block(hit_pos)
+                    update_block_and_mesh(world, renderer, hit_pos)
+                del_blosk = time.time()
+        else:
+            del_blosk = 0.0
         
         # E - поставить light_block
         if input_mgr.is_key_pressed(GLFW_KEY_E):
-            print('GOGA')
-            forward = create_forward(camera)
-            hit_pos, hit_normal = raycast_voxel(world, camera.position, forward, max_distance=8.0)
-            if hit_pos is not None:
-                print('HASA')
-                # Вычисляем позицию для нового блока (соседняя клетка по нормали)
-                place_pos = vm.Vec3i(
-                    hit_pos.x + hit_normal.x, 
-                    hit_pos.y + hit_normal.y, 
-                    hit_pos.z + hit_normal.z
-                )
-                
-                # Защита от установки блока внутрь игрока
-                player_bx = int(math.floor(camera.position.x))
-                player_by = int(math.floor(camera.position.y))
-                player_bz = int(math.floor(camera.position.z))
-                if not (place_pos.x == player_bx and place_pos.y == player_by and place_pos.z == player_bz):
-                    world.set_block(place_pos, light_block)
-                    update_block_and_mesh(world, renderer, place_pos)
-                    print(f"\n  Блок поставлен в ({place_pos.x}, {place_pos.y}, {place_pos.z})")
+            if set_blosk < time.time() - 0.25:
+                forward = create_forward(camera)
+                hit_pos, hit_normal = raycast_voxel(world, camera.position, forward, max_distance=8.0)
+                if hit_pos is not None:
+                    place_pos = vm.Vec3i(
+                        hit_pos.x + hit_normal.x, 
+                        hit_pos.y + hit_normal.y, 
+                        hit_pos.z + hit_normal.z
+                    )
+                    player_bx = int(math.floor(camera.position.x))
+                    player_by = int(math.floor(camera.position.y))
+                    player_bz = int(math.floor(camera.position.z))
+                    if not (place_pos.x == player_bx and place_pos.y == player_by and place_pos.z == player_bz):
+                        world.set_block(place_pos, light_block)
+                        update_block_and_mesh(world, renderer, place_pos)
+                        print(f"\n  Блок поставлен в ({place_pos.x}, {place_pos.y}, {place_pos.z})")
+                set_blosk = time.time()
+        else:
+            set_blosk = 0.0
         
         # Рендер
         renderer.render(tick, camera, 0.1)
