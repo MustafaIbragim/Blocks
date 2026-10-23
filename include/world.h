@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <unordered_map>
 #include <unordered_set>
 #include <memory>
@@ -46,15 +47,27 @@ public:
     void set_block(const Vec3i& world_pos, std::shared_ptr<Block> block);
     void remove_block(const Vec3i& world_pos);
     
+    // Тактовое обновление мира. Внутри ограничено 20 Гц.
+    // Первым шагом обновляется освещение, затем пересобираются dirty-меши.
+    static constexpr float UPDATE_INTERVAL = 1.0f / 20.0f;
+    void update(float delta_time);
+
     // Освещение
     LightEngine& get_light_engine() const { return *light_engine; }
-    void update_lighting() { light_engine->update(); }
+    void update_lighting();
     
     void rebuild_chunk_mesh(const Vec2i& chunk_pos);
+    void rebuild_dirty_meshes();
     std::shared_ptr<Mesh> get_chunk_mesh(const Vec2i& chunk_pos) const;
     bool has_chunk_mesh(const Vec2i& chunk_pos) const;
     void mark_chunk_dirty(const Vec2i& chunk_pos);
     bool is_chunk_dirty(const Vec2i& chunk_pos) const;
+
+    // Вызывается после пересборки меша. Позволяет автоматически
+    // отправлять меш в рендерер без ручного перебора чанков из Python.
+    using MeshUpdateCallback =
+        std::function<void(const Vec2i&, const std::shared_ptr<Mesh>&)>;
+    void set_mesh_update_callback(MeshUpdateCallback callback);
     
     void tick_all(uint64_t tick);
     void slow_tick(uint64_t global_tick, uint32_t tick_counter);
@@ -73,9 +86,13 @@ private:
     std::unordered_map<Vec2i, std::shared_ptr<Chunk>, Vec2iHash> chunks;
     std::unordered_map<Vec2i, std::shared_ptr<Mesh>, Vec2iHash> chunk_meshes;
     std::unordered_set<Vec2i, Vec2iHash> dirty_chunks;
-    
+
+    float update_accumulator = 0.0f;
+    MeshUpdateCallback mesh_update_callback;
+
     void link_horizontal_neighbors(const Vec2i& chunk_pos);
     void unlink_horizontal_neighbors(const Vec2i& chunk_pos);
+    void mark_horizontal_neighbors_dirty(const Vec2i& chunk_pos);
 };
 
 

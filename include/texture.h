@@ -43,6 +43,10 @@ public:
     int32_t get_layer_id(uint32_t texture_id) const;
     
     const Texture* get_texture(int32_t layer_id) const;
+
+    // Поиск по имени. Возвращает nullptr/-1, если текстуры с таким именем нет.
+    std::shared_ptr<Texture> get_texture_by_name(const std::string& name) const;
+    int32_t get_layer_id_by_name(const std::string& name) const;
     
     const std::vector<std::shared_ptr<Texture>>& get_textures() const;
     
@@ -63,6 +67,9 @@ public:
     TextureBlocksManager();
     
     uint16_t register_texture(std::shared_ptr<Texture> texture);
+
+    std::shared_ptr<Texture> get_texture_by_name(const std::string& name) const;
+    int32_t get_texture_id_by_name(const std::string& name) const;
     
     std::pair<uint16_t, uint8_t> get_layer_and_anim(uint16_t texture_id) const;
     

@@ -30,6 +30,18 @@ find_package(pybind11 REQUIRED)
 find_package(glfw3 REQUIRED)
 
 # ============================================================================
+# Bullet Physics
+# ============================================================================
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(BULLET QUIET bullet)
+endif()
+
+if(NOT BULLET_FOUND)
+    find_package(Bullet REQUIRED)
+endif()
+
+# ============================================================================
 # GLAD (загрузчик OpenGL)
 # ============================================================================
 add_library(glad STATIC glad/src/glad.c)
@@ -61,17 +73,22 @@ add_library(core SHARED
     src/image.cpp
     src/texture.cpp
     src/mesh.cpp
+    src/entity.cpp
+    src/dummy.cpp
     src/block.cpp
     src/chunk.cpp
     src/chunk_mesher.cpp
     src/light_engine.cpp
     src/world.cpp
+    src/raycast.cpp
+    src/voxel_collision_shape.cpp
+    src/physics_world.cpp
     src/input.cpp
 )
-target_include_directories(core PUBLIC include)
+target_include_directories(core PUBLIC include ${BULLET_INCLUDE_DIRS})
 # src/input.cpp использует GLFW (glfwGetKey и т.д.), поэтому core линкуется с glfw,
 # иначе при импорте модулей возникает "undefined symbol: glfwGetKey"
-target_link_libraries(core PUBLIC vec glfw)
+target_link_libraries(core PUBLIC vec glfw ${BULLET_LIBRARIES})
 set_target_properties(core PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${LIB_OUTPUT_DIR}
     POSITION_INDEPENDENT_CODE ON
@@ -83,6 +100,14 @@ set_target_properties(core PROPERTIES
 pybind11_add_module(vec_module bindings/vec_pybind.cpp)
 target_link_libraries(vec_module PRIVATE vec)
 set_target_properties(vec_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(entity_module bindings/entity_pybind.cpp)
+target_link_libraries(entity_module PRIVATE core)
+set_target_properties(entity_module PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
     INSTALL_RPATH "$ORIGIN/../lib"
     BUILD_WITH_INSTALL_RPATH TRUE
@@ -144,9 +169,41 @@ set_target_properties(world_module PROPERTIES
     BUILD_WITH_INSTALL_RPATH TRUE
 )
 
+pybind11_add_module(physics_module bindings/physics_pybind.cpp)
+target_link_libraries(physics_module PRIVATE core)
+set_target_properties(physics_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(light_engine_module bindings/light_engine_pybind.cpp)
+target_link_libraries(light_engine_module PRIVATE core)
+set_target_properties(light_engine_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
 pybind11_add_module(input_module bindings/input_pybind.cpp)
 target_link_libraries(input_module PRIVATE core)
 set_target_properties(input_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(raycast_module bindings/raycast_pybind.cpp)
+target_link_libraries(raycast_module PRIVATE core)
+set_target_properties(raycast_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(dummy_module bindings/dummy_pybind.cpp)
+target_link_libraries(dummy_module PRIVATE core)
+set_target_properties(dummy_module PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
     INSTALL_RPATH "$ORIGIN/../lib"
     BUILD_WITH_INSTALL_RPATH TRUE
@@ -157,6 +214,7 @@ set_target_properties(input_module PROPERTIES
 # ============================================================================
 add_library(renderer SHARED
     src/renderer.cpp
+    src/_camera.cpp
 )
 target_include_directories(renderer PUBLIC include glad/include)
 target_link_libraries(renderer PUBLIC core glad glfw)
@@ -168,6 +226,14 @@ set_target_properties(renderer PROPERTIES
 pybind11_add_module(renderer_module bindings/renderer_pybind.cpp)
 target_link_libraries(renderer_module PRIVATE renderer)
 set_target_properties(renderer_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(camera_module bindings/_camera_pybind.cpp)
+target_link_libraries(camera_module PRIVATE renderer)
+set_target_properties(camera_module PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
     INSTALL_RPATH "$ORIGIN/../lib"
     BUILD_WITH_INSTALL_RPATH TRUE

@@ -1,7 +1,9 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include "camera.h"
-#include "render.h"
+
+#include "_camera.h"
+#include "renderer.h"
+#include "view_cam.h"
 
 
 namespace py = pybind11;
@@ -9,27 +11,29 @@ namespace py = pybind11;
 PYBIND11_MODULE(camera_module, m) {
     py::module_::import("vec_module");
     py::module_::import("entity_module");
-    py::module_::import("graphics_module");
-    
-    m.doc() = "Camera module";
-    
+    py::module_::import("renderer_module");
+
+    m.doc() = "Camera entity with ViewCam and Renderer reference";
+
     py::class_<Camera, Entity, std::shared_ptr<Camera>>(m, "Camera")
         .def(py::init<>())
-        .def(py::init<Render*, const Vec3f&, const Vec3r&>(),
-             py::arg("renderer"), py::arg("position"), py::arg("rotation"))
-        .def_readwrite("fov", &Camera::fov)
-        .def_readwrite("aspect_ratio", &Camera::aspect_ratio)
-        .def_readwrite("near_plane", &Camera::near_plane)
-        .def_readwrite("far_plane", &Camera::far_plane)
-        .def("update_matrices", &Camera::update_matrices)
+        .def(py::init<Renderer*>(), py::arg("renderer"))
+        .def(py::init<Renderer*, const ViewCam&>(),
+             py::arg("renderer"), py::arg("view"))
+        .def_readwrite("view", &Camera::view)
+        .def_readwrite("renderer", &Camera::renderer)
         .def("set_renderer", &Camera::set_renderer, py::arg("renderer"))
-        .def("get_view_matrix", &Camera::get_view_matrix, py::return_value_policy::reference)
-        .def("get_projection_matrix", &Camera::get_projection_matrix, py::return_value_policy::reference)
-        .def("__repr__", [](const Camera& c) {
-            return "Camera(pos=(" + std::to_string(c.transform.position.x) + ", " +
-                   std::to_string(c.transform.position.y) + ", " +
-                   std::to_string(c.transform.position.z) + "))";
+        .def("get_renderer", &Camera::get_renderer,
+             py::return_value_policy::reference)
+        .def("set_view", &Camera::set_view, py::arg("view"))
+        .def("sync_view_from_transform", &Camera::sync_view_from_transform)
+        .def("sync_transform_from_view", &Camera::sync_transform_from_view)
+        .def("update", &Camera::update, py::arg("tick"))
+        .def("render", &Camera::render,
+             py::arg("current_tick"), py::arg("min_light") = 0.1f)
+        .def("__repr__", [](const Camera& camera) {
+            return "Camera(pos=(" + std::to_string(camera.view.position.x) + ", " +
+                   std::to_string(camera.view.position.y) + ", " +
+                   std::to_string(camera.view.position.z) + "))";
         });
 }
-
-

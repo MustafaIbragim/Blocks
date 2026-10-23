@@ -4,9 +4,12 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <utility>
 #include "vec.h"
 #include "mesh.h"
 
+
+class btCollisionShape;
 
 class Block {
 public:
@@ -19,9 +22,28 @@ public:
     uint16_t face_textures[6]; 
     
     std::shared_ptr<Mesh> inner;
+
+    // Collision shape блока (flyweight). Один и тот же shared_ptr
+    // переиспользуется всеми блоками данного типа. Форма задаётся в
+    // локальных координатах блока и центрируется в (x+0.5, y+0.5, z+0.5).
+    // nullptr означает, что блок не участвует в коллизиях.
+    std::shared_ptr<btCollisionShape> collision;
     
     Block();
     Block(uint16_t id, const std::string& name);
+
+    void set_collision_shape(std::shared_ptr<btCollisionShape> shape) {
+        collision = std::move(shape);
+    }
+    std::shared_ptr<btCollisionShape> get_collision_shape() const {
+        return collision;
+    }
+    void clear_collision_shape() {
+        collision.reset();
+    }
+    bool has_collision() const {
+        return collision != nullptr;
+    }
     
     virtual void on_place(const Vec3i& pos) const {}
     virtual void on_break(const Vec3i& pos) const {}
@@ -51,6 +73,11 @@ public:
     
     std::shared_ptr<Block> get_block(uint16_t id) const;
 
+    // Общая форма-куб для блоков, у которых не задана собственная collision shape.
+    std::shared_ptr<btCollisionShape> get_default_collision_shape() const {
+        return default_collision_shape;
+    }
+
     // Эмиссия блока без создания shared_ptr — для горячих циклов освещения.
     inline uint8_t get_light(uint16_t id) const {
         return (id < blocks.size() && blocks[id]) ? blocks[id]->light : 0;
@@ -68,6 +95,7 @@ public:
 
 private:
     std::vector<std::shared_ptr<Block>> blocks;
+    std::shared_ptr<btCollisionShape> default_collision_shape;
 };
 
 

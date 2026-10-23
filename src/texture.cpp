@@ -43,6 +43,24 @@ const Texture* TextureManager::get_texture(int32_t layer_id) const {
     return nullptr;
 }
 
+std::shared_ptr<Texture> TextureManager::get_texture_by_name(const std::string& name) const {
+    for (const auto& texture : textures) {
+        if (texture && texture->name == name) {
+            return texture;
+        }
+    }
+    return nullptr;
+}
+
+int32_t TextureManager::get_layer_id_by_name(const std::string& name) const {
+    for (size_t i = 0; i < textures.size(); ++i) {
+        if (textures[i] && textures[i]->name == name) {
+            return static_cast<int32_t>(i);
+        }
+    }
+    return -1;
+}
+
 const std::vector<std::shared_ptr<Texture>>& TextureManager::get_textures() const {
     return textures;
 }
@@ -64,6 +82,24 @@ std::pair<uint16_t, uint8_t> TextureManager::get_layer_and_anim(uint16_t texture
 }
 
 TextureBlocksManager::TextureBlocksManager() {}
+
+std::shared_ptr<Texture> TextureBlocksManager::get_texture_by_name(const std::string& name) const {
+    for (const auto& texture : textures) {
+        if (texture && texture->name == name) {
+            return texture;
+        }
+    }
+    return nullptr;
+}
+
+int32_t TextureBlocksManager::get_texture_id_by_name(const std::string& name) const {
+    for (size_t i = 0; i < textures.size(); ++i) {
+        if (textures[i] && textures[i]->name == name) {
+            return static_cast<int32_t>(i);
+        }
+    }
+    return -1;
+}
 
 uint16_t TextureBlocksManager::register_texture(std::shared_ptr<Texture> texture) {
     if (!texture) {

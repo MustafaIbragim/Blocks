@@ -485,6 +485,37 @@ void LightEngine::forget_chunk(Chunk* chunk) {
     erase_from(light_lists);
     darkened_blocks.erase(std::remove_if(darkened_blocks.begin(), darkened_blocks.end(),
         [chunk](const Entry& e) { return e.chunk == chunk; }), darkened_blocks.end());
+
+    for (auto it = changed_nuggets.begin(); it != changed_nuggets.end();) {
+        if (*it && (*it)->parent == chunk) {
+            it = changed_nuggets.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+std::vector<Chunk*> LightEngine::consume_changed_chunks() {
+    std::unordered_set<Chunk*> unique_chunks;
+    for (ChunkNugget* nugget : changed_nuggets) {
+        if (nugget && nugget->parent) {
+            unique_chunks.insert(nugget->parent);
+        }
+    }
+    changed_nuggets.clear();
+    return std::vector<Chunk*>(unique_chunks.begin(), unique_chunks.end());
+}
+
+void LightEngine::clear_changed_nuggets() {
+    changed_nuggets.clear();
+}
+
+void LightEngine::mark_nugget_changed(Chunk& chunk, uint32_t index) {
+    const int y = index_y(index);
+    if (y < 0 || y >= HEIGHT) {
+        return;
+    }
+    changed_nuggets.insert(&chunk.nuggets[y / static_cast<int>(ChunkNugget::SIZE)]);
 }
 
 bool LightEngine::has_pending() const {
@@ -592,6 +623,7 @@ void LightEngine::process_dark_entry(const Entry& entry, bool fast) {
     }
 
     chunk.light_data[index] = 0;
+    mark_nugget_changed(chunk, index);
     darkened_blocks.push_back(entry);
 }
 
@@ -701,7 +733,11 @@ void LightEngine::process_light_entry(const Entry& entry, int level, bool fast) 
         }
 
         new_light = std::max(0, std::min(new_light, 255));
-        chunk.light_data[index] = static_cast<uint8_t>(new_light);
+        const uint8_t new_light_u8 = static_cast<uint8_t>(new_light);
+        if (chunk.light_data[index] != new_light_u8) {
+            mark_nugget_changed(chunk, index);
+        }
+        chunk.light_data[index] = new_light_u8;
 
         uint8_t* light_mut = chunk.light_data.data();
         for (int i = 0; i < 27; ++i) {
@@ -736,7 +772,11 @@ void LightEngine::process_light_entry(const Entry& entry, int level, bool fast) 
         }
 
         new_light = std::max(0, std::min(new_light, 255));
-        chunk.light_data[index] = static_cast<uint8_t>(new_light);
+        const uint8_t new_light_u8 = static_cast<uint8_t>(new_light);
+        if (chunk.light_data[index] != new_light_u8) {
+            mark_nugget_changed(chunk, index);
+        }
+        chunk.light_data[index] = new_light_u8;
 
         for (int i = 0; i < 27; ++i) {
             if (i == CENTER || !chunks[i]) continue;

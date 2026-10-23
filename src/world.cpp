@@ -41,6 +41,10 @@ void World::set_chunk(const Vec2i& chunk_pos, std::shared_ptr<Chunk> chunk) {
         Chunk* neighbor = chunk->get_neighbor(dir);
         if (neighbor) light_engine->mark_chunk_border(*neighbor, replaced);
     }
+
+    // Новый/заменённый чанк и его соседи должны пересобрать меши.
+    mark_chunk_dirty(chunk_pos);
+    mark_horizontal_neighbors_dirty(chunk_pos);
 }
 
 bool World::has_chunk(const Vec2i& chunk_pos) const {
@@ -62,6 +66,7 @@ void World::remove_chunk(const Vec2i& chunk_pos) {
     chunks.erase(chunk_pos);
     chunk_meshes.erase(chunk_pos);
     dirty_chunks.erase(chunk_pos);
+    mark_horizontal_neighbors_dirty(chunk_pos);
 }
 
 Vec2i World::world_to_chunk_coords(const Vec3i& world_pos) {
@@ -128,19 +133,72 @@ void World::set_block(const Vec3i& world_pos, std::shared_ptr<Block> block) {
                                      old_light, new_light);
     
     mark_chunk_dirty(chunk_pos);
+
+    // На границе чанка соседний меш зависит от этого блока (culling граней).
+    if (local_x == 0) mark_chunk_dirty(Vec2i(chunk_pos.x - 1, chunk_pos.y));
+    if (local_x == Chunk::SIZE_XZ - 1) mark_chunk_dirty(Vec2i(chunk_pos.x + 1, chunk_pos.y));
+    if (local_z == 0) mark_chunk_dirty(Vec2i(chunk_pos.x, chunk_pos.y - 1));
+    if (local_z == Chunk::SIZE_XZ - 1) mark_chunk_dirty(Vec2i(chunk_pos.x, chunk_pos.y + 1));
 }
 
 void World::remove_block(const Vec3i& world_pos) {
     set_block(world_pos, nullptr);
 }
 
+void World::update(float delta_time) {
+    if (delta_time > 0.0f) {
+        update_accumulator += delta_time;
+    }
+    if (update_accumulator < UPDATE_INTERVAL) {
+        return;
+    }
+    update_accumulator = 0.0f;
+
+    // Обязательный шаг №1: сначала освещение. Оно само сообщит,
+    // в каких nugget'ах свет изменился.
+    update_lighting();
+
+    // Затем пересобираем только затронутые чанки.
+    rebuild_dirty_meshes();
+}
+
+void World::update_lighting() {
+    light_engine->update();
+    for (Chunk* chunk : light_engine->consume_changed_chunks()) {
+        if (chunk) {
+            mark_chunk_dirty(chunk->chunk_xz);
+        }
+    }
+}
+
 void World::rebuild_chunk_mesh(const Vec2i& chunk_pos) {
     auto it = chunks.find(chunk_pos);
-    if (it == chunks.end()) return;
+    if (it == chunks.end()) {
+        dirty_chunks.erase(chunk_pos);
+        return;
+    }
     
     auto mesh = ChunkMesher::build_mesh(*it->second, block_mgr, tex_blocks_mgr);
     chunk_meshes[chunk_pos] = mesh;
     dirty_chunks.erase(chunk_pos);
+
+    if (mesh_update_callback) {
+        mesh_update_callback(chunk_pos, mesh);
+    }
+}
+
+void World::rebuild_dirty_meshes() {
+    if (dirty_chunks.empty()) {
+        return;
+    }
+    std::vector<Vec2i> positions(dirty_chunks.begin(), dirty_chunks.end());
+    for (const Vec2i& pos : positions) {
+        rebuild_chunk_mesh(pos);
+    }
+}
+
+void World::set_mesh_update_callback(MeshUpdateCallback callback) {
+    mesh_update_callback = std::move(callback);
 }
 
 std::shared_ptr<Mesh> World::get_chunk_mesh(const Vec2i& chunk_pos) const {
@@ -169,6 +227,20 @@ void World::tick_all(uint64_t tick) {
 void World::slow_tick(uint64_t global_tick, uint32_t tick_counter) {
     for (auto& [pos, chunk] : chunks) {
         chunk->slow_tick(global_tick, tick_counter, block_mgr);
+    }
+}
+
+void World::mark_horizontal_neighbors_dirty(const Vec2i& pos) {
+    const Vec2i directions[4] = {
+        {pos.x - 1, pos.y},
+        {pos.x + 1, pos.y},
+        {pos.x, pos.y - 1},
+        {pos.x, pos.y + 1}
+    };
+    for (const Vec2i& neighbor : directions) {
+        if (has_chunk(neighbor)) {
+            mark_chunk_dirty(neighbor);
+        }
     }
 }
 

@@ -37,6 +37,10 @@ PYBIND11_MODULE(texture_module, m) {
         .def("get_layer_id", &TextureManager::get_layer_id, py::arg("texture_id"))
         .def("get_texture", &TextureManager::get_texture, py::arg("layer_id"),
              py::return_value_policy::reference_internal)
+        .def("get_texture_by_name", &TextureManager::get_texture_by_name,
+             py::arg("name"), "Возвращает Texture по имени или None")
+        .def("get_layer_id_by_name", &TextureManager::get_layer_id_by_name,
+             py::arg("name"), "Возвращает layer id по имени или -1")
         .def("get_textures", &TextureManager::get_textures, py::return_value_policy::reference)
         .def("size", &TextureManager::size)
         .def("has_texture", &TextureManager::has_texture, py::arg("texture_id"))
@@ -49,6 +53,10 @@ PYBIND11_MODULE(texture_module, m) {
     py::class_<TextureBlocksManager>(m, "TextureBlocksManager")
         .def(py::init<>())
         .def("register_texture", &TextureBlocksManager::register_texture, py::arg("texture"))
+        .def("get_texture_by_name", &TextureBlocksManager::get_texture_by_name,
+             py::arg("name"), "Возвращает Texture по имени или None")
+        .def("get_texture_id_by_name", &TextureBlocksManager::get_texture_id_by_name,
+             py::arg("name"), "Возвращает texture id по имени или -1")
         .def("get_layer_and_anim", &TextureBlocksManager::get_layer_and_anim, py::arg("texture_id"),
              "Возвращает кортеж (base_layer, anim_data) для texture_id")
         .def("size", &TextureBlocksManager::size)

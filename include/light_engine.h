@@ -1,7 +1,9 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <unordered_set>
 #include <vector>
 #include "vec.h"
 #include "chunk.h"
@@ -60,6 +62,12 @@ public:
     // Убрать из очередей ссылки на удалённый чанк.
     void forget_chunk(Chunk* chunk);
 
+    // ChunkNugget'ы, в которых свет реально изменился за последние проходы.
+    // World забирает их после update() и помечает родительские чанки dirty.
+    std::vector<Chunk*> consume_changed_chunks();
+    void clear_changed_nuggets();
+    size_t changed_nugget_count() const { return changed_nuggets.size(); }
+
     bool has_pending() const;
     bool has_dark_pending() const;
     bool has_light_pending() const;
@@ -86,6 +94,11 @@ private:
     // Блоки, погашенные в текущем проходе. Семена для освещения ставим
     // после завершения всего затемнения, когда финальное поле света известно.
     std::vector<Entry> darkened_blocks;
+
+    // Затронутые nugget'ы. Храним именно nugget, а не целый чанк:
+    // это позволяет точно знать область изменения, а dirty-меш ставится
+    // уже на родительский чанк после consume_changed_chunks().
+    std::unordered_set<ChunkNugget*> changed_nuggets;
 
     // full_opacity для 3x3x3 вокруг текущего блока.
     std::array<uint8_t, 27> full_opacity;
@@ -118,6 +131,7 @@ private:
     void schedule_light_source(Chunk& chunk, uint32_t index);
 
     // --- обработка ---
+    void mark_nugget_changed(Chunk& chunk, uint32_t index);
     void process_dark_entry(const Entry& entry, bool fast);
     void process_light_entry(const Entry& entry, int level, bool fast);
     void seed_after_darkening();

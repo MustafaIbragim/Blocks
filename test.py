@@ -15,129 +15,42 @@ GLFW_KEY_D = 68
 GLFW_KEY_SPACE = 32
 GLFW_KEY_LEFT_SHIFT = 340
 GLFW_KEY_ESCAPE = 256
+GLFW_KEY_U = 85
+GLFW_KEY_F6 = 295
 
-GLFW_KEY_Q = 81
-GLFW_KEY_E = 69
-
-def raycast_voxel(world, origin, direction, max_distance=8.0):
-    """Рейкаст по вокселям (алгоритм Amanatides & Woo).
-    Возвращает (hit_pos, hit_normal) или (None, None).
-    """
-    import vec_module as vm
-
-    x = int(math.floor(origin.x))
-    y = int(math.floor(origin.y))
-    z = int(math.floor(origin.z))
-    
-    step_x = 1 if direction.x > 0 else -1
-    step_y = 1 if direction.y > 0 else -1
-    step_z = 1 if direction.z > 0 else -1
-    
-    t_delta_x = abs(1.0 / direction.x) if direction.x != 0 else float('inf')
-    t_delta_y = abs(1.0 / direction.y) if direction.y != 0 else float('inf')
-    t_delta_z = abs(1.0 / direction.z) if direction.z != 0 else float('inf')
-    
-    t_max_x = ((x + 1 - origin.x) if step_x > 0 else (origin.x - x)) * t_delta_x if direction.x != 0 else float('inf')
-    t_max_y = ((y + 1 - origin.y) if step_y > 0 else (origin.y - y)) * t_delta_y if direction.y != 0 else float('inf')
-    t_max_z = ((z + 1 - origin.z) if step_z > 0 else (origin.z - z)) * t_delta_z if direction.z != 0 else float('inf')
-    
-    hit_pos = vm.Vec3i(x, y, z)
-    hit_normal = vm.Vec3i(0, 0, 0)
-    
-    dist = 0.0
-    while dist < max_distance:
-        block = world.get_block(hit_pos) 
-        if block is not None and getattr(block, 'id', 0) != 0:
-            return hit_pos, hit_normal
-        
-        if t_max_x < t_max_y:
-            if t_max_x < t_max_z:
-                x += step_x
-                dist = t_max_x
-                t_max_x += t_delta_x
-                hit_normal = vm.Vec3i(-step_x, 0, 0)
-            else:
-                z += step_z
-                dist = t_max_z
-                t_max_z += t_delta_z
-                hit_normal = vm.Vec3i(0, 0, -step_z)
-        else:
-            if t_max_y < t_max_z:
-                y += step_y
-                dist = t_max_y
-                t_max_y += t_delta_y
-                hit_normal = vm.Vec3i(0, -step_y, 0)
-            else:
-                z += step_z
-                dist = t_max_z
-                t_max_z += t_delta_z
-                hit_normal = vm.Vec3i(0, 0, -step_z)
-                
-        hit_pos = vm.Vec3i(x, y, z)
-        
-    return None, None
-
-def update_block_and_mesh(world, renderer, pos):
-    """Обновляет свет и пересобирает меши затронутых чанков."""
-    import vec_module as vm
-
-    # 1. Пересчитываем свет
-    world.update_lighting()
-    
-    # 2. Определяем, какие чанки нужно пересобрать
-    # cx = (pos.x - 16) // 32
-    # cz = (pos.z - 16)  // 32
-    
-    for y in range(2):
-        for x in range(2):
-            pos = vm.Vec2i(x, y)
-            world.rebuild_chunk_mesh(pos)
-            mesh = world.get_chunk_mesh(pos)
-            renderer.upload_mesh(pos.x * 2 + pos.y + 1, mesh)
-
+MOUSE_BUTTON_LEFT = 0
+MOUSE_BUTTON_RIGHT = 1
 
 import numpy as np
 
 
-import renderer_module as rm
-
-def create_forward(camera: rm.ViewCam):
-    import vec_module as vm
-    yaw = camera.rotation.x
-    pitch = camera.rotation.y
-    cp = math.cos(pitch)
-    forward = vm.Vec3f(
-        math.cos(yaw) * cp,
-        math.sin(pitch),
-        math.sin(yaw) * cp
-    )
-    return forward
-
-
 def test_renderer():
-    print("=== Renderer + Input: Чистая архитектура ===")
+    print("=== Renderer + Input + Camera/Dummy + C++ Raycast ===")
+
     import renderer_module as rm
     import input_module as im
     import world_module as wm
     import block_module as bm
     import texture_module as tm
-    import image_module as im_img
+    import image_module as img_module
     import chunk_module as cm
     import vec_module as vm
-    
-    # ... (инициализация мира и блоков без изменений) ...
+    import raycast_module as rc
+    import dummy_module as dm
+    import camera_module as cam
+    import physics_module as pm
+
+    # ------------------------------------------------------------------
+    # Мир, блоки, текстуры
+    # ------------------------------------------------------------------
     block_mgr = bm.BlockManager()
     tex_blocks_mgr = tm.TextureBlocksManager()
     tex_mgr = tm.TextureManager()
 
     def make_noise_texture(base_rgb, noise_amplitude, seed):
-        """16x16 тайл: базовый цвет + небольшой нейтральный (серый) шум.
-
-        Одинаковый сдвиг добавляется ко всем каналам RGB, поэтому шум не
-        вносит цветной оттенок — только колебания яркости.
-        """
+        """16x16 тайл: базовый цвет + небольшой нейтральный (серый) шум."""
         rng = random.Random(seed)
-        tex_img = im_img.Image(16, 16)
+        tex_img = img_module.Image(16, 16)
         base_r, base_g, base_b = base_rgb
         for py in range(tex_img.height):
             for px in range(tex_img.width):
@@ -150,278 +63,288 @@ def test_renderer():
                 ))
         return tex_img
 
-    # Земля: приглушённый коричневый + серый шум.
     dirt_img = make_noise_texture((112, 84, 58), 16, seed=1234)
-    # Трава: спокойный (не кислотный) зелёный + серый шум.
     grass_img = make_noise_texture((86, 132, 64), 12, seed=5678)
 
-    dirt_tex = tm.Texture([dirt_img], "dirt")
-    grass_tex = tm.Texture([grass_img], "grass")
+    tex_blocks_mgr.register_texture(tm.Texture([dirt_img], "dirt"))
+    tex_blocks_mgr.register_texture(tm.Texture([grass_img], "grass"))
 
-    # id текстуры в TextureBlocksManager одновременно является слоем
-    # в GL_TEXTURE_2D_ARRAY (на одну текстуру — один слой).
-    dirt_tex_id = tex_blocks_mgr.register_texture(dirt_tex)
-    grass_tex_id = tex_blocks_mgr.register_texture(grass_tex)
-    print(f"  Текстуры: dirt id={dirt_tex_id} (слой {dirt_tex_id}), "
-          f"grass id={grass_tex_id} (слой {grass_tex_id})")
+    # Получаем id по имени, а не запоминаем порядок регистрации.
+    dirt_tex_id = tex_blocks_mgr.get_texture_id_by_name("dirt")
+    grass_tex_id = tex_blocks_mgr.get_texture_id_by_name("grass")
+    if dirt_tex_id < 0 or grass_tex_id < 0:
+        raise RuntimeError("Не удалось найти текстуры dirt/grass по имени")
+    print(f"  Текстуры по имени: dirt id={dirt_tex_id}, grass id={grass_tex_id}")
 
     dirt = bm.Block(0, "dirt")
     dirt.id = block_mgr.register_block(dirt)
     dirt.opacity = 255
     dirt.status = 0x01
 
-    # Порядок граней в ChunkMesher::build_cube_faces:
-    #   0 = -X, 1 = +X, 2 = -Y, 3 = +Y, 4 = -Z, 5 = +Z.
-    # Земля — на всех гранях, кроме верхней; трава — только на верхней (+Y).
+    # 0=-X, 1=+X, 2=-Y, 3=+Y, 4=-Z, 5=+Z
     for i in range(6):
         dirt.set_face_texture(i, grass_tex_id if i == 3 else dirt_tex_id)
-    
+
     light_block_img = make_noise_texture((158, 198, 253), 2, seed=34)
-    np.array(light_block_img, copy=False)[0,:] = (100, 110, 120, 255)
-    np.array(light_block_img, copy=False)[15,:] = (100, 110, 120, 255)
-    np.array(light_block_img, copy=False)[:,0] = (100, 110, 120, 255)
-    np.array(light_block_img, copy=False)[:,15] = (100, 110, 120, 255)
-    light_block_tex = tm.Texture([light_block_img], "dirt")
-    
+    np.array(light_block_img, copy=False)[0, :] = (100, 110, 120, 255)
+    np.array(light_block_img, copy=False)[15, :] = (100, 110, 120, 255)
+    np.array(light_block_img, copy=False)[:, 0] = (100, 110, 120, 255)
+    np.array(light_block_img, copy=False)[:, 15] = (100, 110, 120, 255)
+    tex_blocks_mgr.register_texture(tm.Texture([light_block_img], "light_block"))
+    light_block_tex_id = tex_blocks_mgr.get_texture_id_by_name("light_block")
+
     light_block = bm.Block(1, "light_block")
     light_block.id = block_mgr.register_block(light_block)
     light_block.opacity = 255
     light_block.status = 0x01
-    light_block.status = 0x01
     light_block.light = 255
-    
-    light_block_tex_id = tex_blocks_mgr.register_texture(light_block_tex)
-    
     for i in range(6):
         light_block.set_face_texture(i, light_block_tex_id)
-    
+
+    # ------------------------------------------------------------------
+    # Чанки и рельеф
+    # ------------------------------------------------------------------
     world = wm.World(block_mgr, tex_blocks_mgr, tex_mgr)
-    chunk = cm.Chunk()
-    world.set_chunk(vm.Vec2i(0, 0), chunk)
-    ###
-    chunk_1_0 = cm.Chunk(vm.Vec2i(1, 0))
-    chunk_0_1 = cm.Chunk(vm.Vec2i(0, 1))
-    chunk_1_1 = cm.Chunk(vm.Vec2i(1, 1))
-    world.set_chunk(vm.Vec2i(1, 0), chunk_1_0)
-    world.set_chunk(vm.Vec2i(0, 1), chunk_0_1)
-    world.set_chunk(vm.Vec2i(1, 1), chunk_1_1)
-    ###
+    world.set_chunk(vm.Vec2i(0, 0), cm.Chunk())
+    world.set_chunk(vm.Vec2i(1, 0), cm.Chunk(vm.Vec2i(1, 0)))
+    world.set_chunk(vm.Vec2i(0, 1), cm.Chunk(vm.Vec2i(0, 1)))
+    world.set_chunk(vm.Vec2i(1, 1), cm.Chunk(vm.Vec2i(1, 1)))
+
     for x in range(40):
         for z in range(40):
             world.set_block(vm.Vec3i(x + 10, 15, z + 10), dirt)
-    
+
+    # Небольшие стенки для проверки теней/границ чанков.
     world.set_block(vm.Vec3i(15, 17, 15), dirt)
-    
     world.set_block(vm.Vec3i(12, 17, 15), dirt)
     world.set_block(vm.Vec3i(13, 17, 15), dirt)
-    
     world.set_block(vm.Vec3i(15, 17, 12), dirt)
     world.set_block(vm.Vec3i(15, 17, 13), dirt)
-    
     world.set_block(vm.Vec3i(25, 17, 25), light_block)
-    
-    print("  Задаём градиент света...")
 
-    world.update_lighting()
-    
-    # Задаём свет для всех 4 чанков
-    # for chunk_x in range(2):
-    #     for chunk_z in range(2):
-    #         chunk = world.get_chunk(vm.Vec2i(chunk_x, chunk_z))
-    #         light_np = chunk.light_np
-            
-    #         # Обнуляем весь чанк
-    #         light_np[:] = 0
-            
-    #         # Задаём свет для блоков платформы в этом чанке
-    #         for local_x in range(32):
-    #             for local_z in range(32):
-    #                 # Вычисляем мировые координаты
-    #                 world_x = chunk_x * 32 + local_x
-    #                 world_z = chunk_z * 32 + local_z
-                    
-    #                 # Проверяем, что блок находится в пределах платформы (X: 10-49, Z: 10-49)
-    #                 if 10 <= world_x <= 49 and 10 <= world_z <= 49:
-    #                     # Центр платформы: блоки 13-32 по X и Z
-    #                     if 13 <= world_x <= 32 and 13 <= world_z <= 32:
-    #                         light_val = 255  # Максимальный свет
-    #                     else:
-    #                         light_val = 0    # Полный мрак
-                        
-    #                     # Используем ЛОКАЛЬНЫЕ координаты чанка
-    #                     idx = cm.Chunk.coords_to_global_index(local_x, 16, local_z)
-    #                     light_np[idx] = light_val
-    
-    # print(f"  Градиент задан для всех 4 чанков")
-    
-    # # Отладка: проверяем значения
-    # print("  Проверка light_data:")
-    # for x in [10, 13, 15, 17, 19]:
-    #     for z in [10, 13, 15, 17, 19]:
-    #         idx = cm.Chunk.coords_to_global_index(x, 16, z)
-    #         light_val = light_np[idx]
-    #         print(f"    Блок ({x}, 15, {z}): light={light_val}")
-    
-    # Пересобираем меш, чтобы мезер запёк новый свет в вершины!
-    world.rebuild_chunk_mesh(vm.Vec2i(0, 0))
-    world.rebuild_chunk_mesh(vm.Vec2i(1, 0))
-    world.rebuild_chunk_mesh(vm.Vec2i(0, 1))
-    world.rebuild_chunk_mesh(vm.Vec2i(1, 1))
-    
-    mesh = world.get_chunk_mesh(vm.Vec2i(0, 0))
-    if not mesh:
-        print("  Меш не построен!")
-        return
-    mesh_1_0 = world.get_chunk_mesh(vm.Vec2i(1, 0))
-    mesh_0_1 = world.get_chunk_mesh(vm.Vec2i(0, 1))
-    mesh_1_1 = world.get_chunk_mesh(vm.Vec2i(1, 1))
-    
+    # ------------------------------------------------------------------
+    # Рендерер
+    # ------------------------------------------------------------------
+    renderer = rm.Renderer()
+    renderer.init(800, 600, "Voxel Engine - Camera/Dummy + Raycast")
+    renderer.upload_block_textures(tex_blocks_mgr)
+
+    def chunk_mesh_id(chunk_pos):
+        return int(chunk_pos.x) * 2 + int(chunk_pos.y) + 1
+
+    # Мир сам пересобирает dirty-меши и отдаёт их рендереру.
+    world.set_mesh_update_callback(
+        lambda chunk_pos, mesh: renderer.upload_mesh(chunk_mesh_id(chunk_pos), mesh)
+    )
+
+    # Первый такт: свет + все стартовые меши (set_chunk/set_block пометили их dirty).
+    world.update(1.0)
+
     for cx in range(2):
         for cz in range(2):
-            c = world.get_chunk(vm.Vec2i(cx, cz))
-            ln = c.light_np
-            print(f"Чанк ({cx},{cz}): light_np адрес = {ln.ctypes.data}, shape = {ln.shape}")
-    
-    # 1. Создаём Рендерер
-    renderer = rm.Renderer()
-    renderer.init(800, 600, "Voxel Engine - Clean Architecture")
-    renderer.upload_block_textures(tex_blocks_mgr)
-    renderer.upload_mesh(1, mesh)
-    renderer.upload_mesh(2, mesh_1_0)
-    renderer.upload_mesh(3, mesh_0_1)
-    renderer.upload_mesh(4, mesh_1_1)
-    
-    # 2. Создаём Ввод, передавая ему дескриптор окна от Рендерера
+            if not world.has_chunk_mesh(vm.Vec2i(cx, cz)):
+                raise RuntimeError(f"Меш чанка ({cx},{cz}) не был построен")
+
+    # ------------------------------------------------------------------
+    # Ввод, Dummy (вместо абстрактной ViewCam) и Camera
+    # ------------------------------------------------------------------
     input_mgr = im.Input(renderer.get_window_handle())
-    input_mgr.set_cursor_visible(False) # Скрываем курсор
-    
-    # Камера
-    camera = rm.ViewCam()
-    camera.position = vm.Vec3f(15.0, 18.0, 25.0)
-    camera.rotation = vm.Vec3r(0.0, -0.5, 0.0, False)
-    camera.fov = 70.0
-    
+    input_mgr.set_cursor_visible(False)
+
+    dummy = dm.Dummy(
+        vm.Vec3f(15.0, 18.0, 25.0),
+        vm.Vec3r(0.0, -0.5, 0.0, False),
+    )
+    dummy.view.fov = 70.0
+
+    # Camera хранит ViewCam и ссылку на Renderer; сам ViewCam принадлежит Dummy.
+    camera = cam.Camera(renderer, dummy.view)
+
+    directions = rc.ViewDirections(dummy.transform.rotation)
+
+    # ------------------------------------------------------------------
+    # Физика: тело Dummy. F6 включает/выключает коллизии и гравитацию.
+    # ------------------------------------------------------------------
+    physics = pm.PhysicsWorld()
+    for cx in range(2):
+        for cz in range(2):
+            physics.add_chunk(world, vm.Vec2i(cx, cz))
+
+    player_body = physics.add_dynamic_box(
+        vm.Vec3f(0.3, 0.8, 0.3), 70.0, dummy.transform.position)
+
+    physics_on = False
+    dummy.collisions_enabled = False
+    dummy.gravity_enabled = False
+    physics.set_body_collisions_enabled(player_body, False)
+    physics.set_body_gravity(player_body, vm.Vec3f(0.0, 0.0, 0.0))
+
     move_speed = 8.0
     mouse_sensitivity = 0.003
-    
-    print("\nУправление: WASD, Мышь, Space/Shift, ESC\n")
-    
+    selected_block = dirt
+    selected_is_light = False
+
+    print("\nУправление:")
+    print("  WASD / Space / Shift / мышь — движение и обзор")
+    print("  ЛКМ — сломать блок, ПКМ — поставить блок")
+    print("  U — сменить устанавливаемый блок (dirt / light_block)")
+    print("  F6 — включить/выключить коллизии и гравитацию")
+    print("  ESC — выход\n")
+
     last_time = time.time()
     tick = 0
     fps_counter = 0
     fps_time = 0.0
-    
-    del_blosk = 0.0
-    set_blosk = 0.0
-    
+    last_break = 0.0
+    last_place = 0.0
+
     while not renderer.should_close():
-        current_time = time.time()
-        dt = current_time - last_time
-        last_time = current_time
-        
-        # FPS
+        now = time.time()
+        dt = min(now - last_time, 0.05)
+        last_time = now
+
         fps_counter += 1
         fps_time += dt
         if fps_time >= 1.0:
             print(f"\r  FPS: {fps_counter / fps_time:.1f}", end='', flush=True)
             fps_counter = 0
             fps_time = 0.0
-        
-        # Обработка ввода
+
+        # Только один poll_events за кадр: Input должен видеть edge-переходы.
         input_mgr.poll_events()
-        
+
         if input_mgr.is_key_pressed(GLFW_KEY_ESCAPE):
             break
-        
-        # Движение
-        yaw = camera.rotation.x
-        
-        # Вектор "вперёд" (куда смотрит камера, проекция на горизонталь)
-        forward_x = math.cos(yaw)
-        forward_z = math.sin(yaw)
-        
-        # Вектор "вправо" (перпендикулярно forward)
-        right_x = -math.sin(yaw)
-        right_z = math.cos(yaw)
-        
-        move_x = 0.0
-        move_y = 0.0
-        move_z = 0.0
-        
-        if input_mgr.is_key_pressed(GLFW_KEY_W):
-            move_x += forward_x
-            move_z += forward_z
-        if input_mgr.is_key_pressed(GLFW_KEY_S):
-            move_x -= forward_x
-            move_z -= forward_z
-        if input_mgr.is_key_pressed(GLFW_KEY_A):
-            move_x -= right_x
-            move_z -= right_z
-        if input_mgr.is_key_pressed(GLFW_KEY_D):
-            move_x += right_x
-            move_z += right_z
-        if input_mgr.is_key_pressed(GLFW_KEY_SPACE):
-            move_y += 1.0
-        if input_mgr.is_key_pressed(GLFW_KEY_LEFT_SHIFT):
-            move_y -= 1.0
-        
-        if move_x != 0.0 or move_z != 0.0:
-            length = math.sqrt(move_x ** 2 + move_z ** 2)
-            move_x /= length; move_z /= length
-        
-        camera.position.x += move_x * move_speed * dt
-        camera.position.y += move_y * move_speed * dt
-        camera.position.z += move_z * move_speed * dt
-        
-        # Поворот
-        mouse_dx, mouse_dy = input_mgr.get_mouse_delta()
-        camera.rotation.x += mouse_dx * mouse_sensitivity
-        camera.rotation.y += mouse_dy * mouse_sensitivity
-        camera.rotation.y = max(-1.5, min(1.5, camera.rotation.y))
 
-        # Вычисляем 3D вектор направления взгляда для рейкаста
-        
-        # Q - сломать блок
-        if input_mgr.is_key_pressed(GLFW_KEY_Q):
-            if del_blosk < time.time() -0.25:
-                forward = create_forward(camera)
-                hit_pos, hit_normal = raycast_voxel(world, camera.position, forward, max_distance=8.0)
-                if hit_pos is not None:
-                    world.remove_block(hit_pos)
-                    update_block_and_mesh(world, renderer, hit_pos)
-                del_blosk = time.time()
+        # --- Поворот Dummy ---
+        mouse_dx, mouse_dy = input_mgr.get_mouse_delta()
+        dummy.transform.rotation.x += mouse_dx * mouse_sensitivity
+        dummy.transform.rotation.y += mouse_dy * mouse_sensitivity
+        dummy.transform.rotation.y = max(-1.5, min(1.5, dummy.transform.rotation.y))
+        dummy.sync_view_from_transform()
+
+        directions.set_rotation(dummy.transform.rotation)
+
+        # --- Движение в горизонтальной плоскости ---
+        move = vm.Vec3f(0.0, 0.0, 0.0)
+        forward = directions.create_forward_flat()
+        right = directions.create_right_flat()
+
+        if input_mgr.is_key_pressed(GLFW_KEY_W):
+            move = move + forward
+        if input_mgr.is_key_pressed(GLFW_KEY_S):
+            move = move - forward
+        if input_mgr.is_key_pressed(GLFW_KEY_D):
+            move = move + right
+        if input_mgr.is_key_pressed(GLFW_KEY_A):
+            move = move - right
+        if move.length > 1e-6:
+            move = move.normalized()
+
+        vertical = 0.0
+        if input_mgr.is_key_pressed(GLFW_KEY_SPACE):
+            vertical += 1.0
+        if input_mgr.is_key_pressed(GLFW_KEY_LEFT_SHIFT):
+            vertical -= 1.0
+
+        if physics_on:
+            velocity = physics.get_body_linear_velocity(player_body)
+            vertical_velocity = velocity.y
+            if vertical > 0.0:
+                vertical_velocity = 6.0
+            elif vertical < 0.0:
+                vertical_velocity = -6.0
+
+            physics.set_body_linear_velocity(player_body, vm.Vec3f(
+                move.x * move_speed,
+                vertical_velocity,
+                move.z * move_speed,
+            ))
+            physics.step(dt, 1, 1.0 / 60.0)
+
+            dummy.transform.position = physics.get_body_position(player_body)
         else:
-            del_blosk = 0.0
-        
-        # E - поставить light_block
-        if input_mgr.is_key_pressed(GLFW_KEY_E):
-            if set_blosk < time.time() - 0.25:
-                forward = create_forward(camera)
-                hit_pos, hit_normal = raycast_voxel(world, camera.position, forward, max_distance=8.0)
-                if hit_pos is not None:
+            dummy.transform.position.x += move.x * move_speed * dt
+            dummy.transform.position.y += vertical * move_speed * dt
+            dummy.transform.position.z += move.z * move_speed * dt
+
+            # Держим физическое тело в позиции Dummy, пока физика выключена.
+            physics.set_body_position(player_body, dummy.transform.position)
+            physics.set_body_linear_velocity(player_body, vm.Vec3f(0.0, 0.0, 0.0))
+
+        dummy.sync_view_from_transform()
+
+        # --- Обязательное тактовое обновление мира ---
+        # Свет обновляется не чаще 20 Гц, затем автоматически пересобираются
+        # только затронутые чанки и отправляются в рендерер через callback.
+        world.update(dt)
+
+        # --- Рейкаст и взаимодействие с блоками ---
+        hit = rc.raycast_voxel(
+            world,
+            dummy.view.position,
+            directions.create_forward(),
+            8.0,
+        )
+
+        if input_mgr.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+            if now - last_break >= 0.25:
+                if hit:
+                    world.remove_block(hit.block)
+                    print(f"\n  Блок сломан: ({hit.block.x}, {hit.block.y}, {hit.block.z})")
+                last_break = now
+
+        if input_mgr.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+            if now - last_place >= 0.25:
+                if hit and (hit.normal.x or hit.normal.y or hit.normal.z):
                     place_pos = vm.Vec3i(
-                        hit_pos.x + hit_normal.x, 
-                        hit_pos.y + hit_normal.y, 
-                        hit_pos.z + hit_normal.z
+                        hit.block.x + hit.normal.x,
+                        hit.block.y + hit.normal.y,
+                        hit.block.z + hit.normal.z,
                     )
-                    player_bx = int(math.floor(camera.position.x))
-                    player_by = int(math.floor(camera.position.y))
-                    player_bz = int(math.floor(camera.position.z))
-                    if not (place_pos.x == player_bx and place_pos.y == player_by and place_pos.z == player_bz):
-                        world.set_block(place_pos, light_block)
-                        update_block_and_mesh(world, renderer, place_pos)
-                        print(f"\n  Блок поставлен в ({place_pos.x}, {place_pos.y}, {place_pos.z})")
-                set_blosk = time.time()
-        else:
-            set_blosk = 0.0
-        
-        # Рендер
-        renderer.render(tick, camera, 0.1)
+
+                    player_block = vm.Vec3i(
+                        int(math.floor(dummy.view.position.x)),
+                        int(math.floor(dummy.view.position.y)),
+                        int(math.floor(dummy.view.position.z)),
+                    )
+                    if place_pos != player_block:
+                        world.set_block(place_pos, selected_block)
+                        print(f"\n  Блок поставлен: ({place_pos.x}, "
+                              f"{place_pos.y}, {place_pos.z})")
+                last_place = now
+
+        # --- U: выбор блока ---
+        if input_mgr.is_key_just_pressed(GLFW_KEY_U):
+            selected_is_light = not selected_is_light
+            selected_block = light_block if selected_is_light else dirt
+            print(f"\n  Устанавливаемый блок: {selected_block.name}")
+
+        # --- F6: коллизии и гравитация ---
+        if input_mgr.is_key_just_pressed(GLFW_KEY_F6):
+            physics_on = not physics_on
+            dummy.collisions_enabled = physics_on
+            dummy.gravity_enabled = physics_on
+
+            physics.set_body_collisions_enabled(player_body, physics_on)
+            physics.set_body_gravity(
+                player_body,
+                vm.Vec3f(0.0, -9.81, 0.0) if physics_on
+                else vm.Vec3f(0.0, 0.0, 0.0),
+            )
+            if physics_on:
+                physics.set_body_position(player_body, dummy.transform.position)
+
+            state = "ВКЛ" if physics_on else "ВЫКЛ"
+            print(f"\n  Коллизии и гравитация: {state}")
+
+        # --- Рендер ---
+        camera.set_view(dummy.view)
+        camera.render(tick, 0.1)
         renderer.swap_buffers()
-        renderer.poll_events()
-        
+
         tick += 1
-    
+
     renderer.cleanup()
     print("\n\n  [OK]\n")
 
@@ -437,5 +360,3 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
         sys.exit(1)
-
-

@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/functional.h>
 #include "world.h"
 
 
@@ -46,13 +47,19 @@ PYBIND11_MODULE(world_module, m) {
         .def("set_block", &World::set_block, py::arg("world_pos"), py::arg("block"))
         .def("remove_block", &World::remove_block, py::arg("world_pos"))
         
-        // Освещение
+        // Освещение и тактовое обновление мира
         .def("get_light_engine", &World::get_light_engine,
              py::return_value_policy::reference_internal)
         .def("update_lighting", &World::update_lighting)
+        .def("update", &World::update, py::arg("delta_time"),
+             "Обновляет мир не чаще 20 Гц: свет, затем dirty-меши")
         
         // Управление мешами
         .def("rebuild_chunk_mesh", &World::rebuild_chunk_mesh, py::arg("chunk_pos"))
+        .def("rebuild_dirty_meshes", &World::rebuild_dirty_meshes)
+        .def("set_mesh_update_callback", &World::set_mesh_update_callback,
+             py::arg("callback"),
+             "Callback(chunk_pos, mesh), вызывается после пересборки меша")
         .def("get_chunk_mesh", &World::get_chunk_mesh, py::arg("chunk_pos"))
         .def("has_chunk_mesh", &World::has_chunk_mesh, py::arg("chunk_pos"))
         .def("mark_chunk_dirty", &World::mark_chunk_dirty, py::arg("chunk_pos"))

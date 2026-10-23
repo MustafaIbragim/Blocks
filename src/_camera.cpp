@@ -1,43 +1,34 @@
-#include "camera.h"
-#include "world.h"
-#include <cmath>
+#include "_camera.h"
+
+#include "renderer.h"
+
 
 Camera::Camera() = default;
 
-Camera::Camera(Render* renderer, const Vec3f& position, const Vec3r& rotation)
-    : renderer(renderer) {
-    transform.position = position;
-    transform.rotation = rotation;
+Camera::Camera(Renderer* renderer)
+    : renderer(renderer) {}
+
+Camera::Camera(Renderer* renderer, const ViewCam& view)
+    : view(view), renderer(renderer) {}
+
+void Camera::sync_view_from_transform() {
+    view.position = transform.position;
+    view.rotation = transform.rotation;
 }
 
-void Camera::set_renderer(Render* renderer) {
-    this->renderer = renderer;
+void Camera::sync_transform_from_view() {
+    transform.position = view.position;
+    transform.rotation = view.rotation;
 }
 
-void Camera::update_matrices() {
-    // View matrix: из позиции и вращения камеры
-    Vec3f front = Vec3f(0.0f, 0.0f, -1.0f).rotate(transform.rotation);
-    Vec3f target = transform.position + front;
-    Vec3f up(0.0f, 1.0f, 0.0f);
-    
-    view_matrix = Mat4x4::look_at(transform.position, target, up);
-    
-    // Projection matrix
-    projection_matrix = Mat4x4::perspective(
-        fov, aspect_ratio, near_plane, far_plane
-    );
+void Camera::update(uint32_t tick) {
+    (void)tick;
+    sync_view_from_transform();
 }
 
-void Camera::render_frame(World* world) {
-    if (!renderer || !world) return;
-    
-    update_matrices();
-    
-    renderer->set_view_matrix(view_matrix);
-    renderer->set_projection_matrix(projection_matrix);
-    
-    // Отрисовка всех чанков
-    // (реализация будет зависеть от конкретной реализации Render)
+void Camera::render(uint64_t current_tick, float min_light) {
+    if (!renderer) {
+        return;
+    }
+    renderer->render(current_tick, view, min_light);
 }
-
-

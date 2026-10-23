@@ -8,6 +8,7 @@
 #include "mesh.h"
 #include "world.h"
 #include "texture.h"
+#include "view_cam.h"
 
 
 // GPU-формат грани: одна запись на каждый угол треугольника
@@ -16,21 +17,6 @@ struct GPUFaceAttr {
     float u, v;
     int32_t layer;
     uint32_t anim_data;
-};
-
-struct ViewCam {
-    Vec3f position;
-    Vec3r rotation;
-    float fov;
-    float near_plane;
-    float far_plane;
-    
-    ViewCam() 
-        : position(Vec3f(0, 0, 5))
-        , rotation(Vec3r(0, 0, 0, false))
-        , fov(60.0f)
-        , near_plane(0.1f)
-        , far_plane(1000.0f) {}
 };
 
 

@@ -11,6 +11,14 @@ PYBIND11_MODULE(input_module, m) {
         .def(py::init<uintptr_t>(), py::arg("window_handle"),
              "Инициализирует ввод, принимая дескриптор окна от Renderer")
         .def("is_key_pressed", &Input::is_key_pressed, py::arg("key"))
+        .def("is_key_just_pressed", &Input::is_key_just_pressed, py::arg("key"))
+        .def("is_key_just_released", &Input::is_key_just_released, py::arg("key"))
+        .def("is_mouse_button_pressed", &Input::is_mouse_button_pressed,
+             py::arg("button"))
+        .def("is_mouse_button_just_pressed", &Input::is_mouse_button_just_pressed,
+             py::arg("button"))
+        .def("is_mouse_button_just_released", &Input::is_mouse_button_just_released,
+             py::arg("button"))
         .def("get_mouse_delta", [](Input& self) {
             float dx, dy;
             self.get_mouse_delta(dx, dy);
@@ -21,6 +29,8 @@ PYBIND11_MODULE(input_module, m) {
         .def("__repr__", [](const Input&) {
             return "Input()";
         });
+
+    m.attr("MOUSE_BUTTON_LEFT") = 0;
+    m.attr("MOUSE_BUTTON_RIGHT") = 1;
+    m.attr("MOUSE_BUTTON_MIDDLE") = 2;
 }
-
-
