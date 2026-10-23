@@ -64,11 +64,14 @@ add_library(core SHARED
     src/block.cpp
     src/chunk.cpp
     src/chunk_mesher.cpp
+    src/light_engine.cpp
     src/world.cpp
     src/input.cpp
 )
 target_include_directories(core PUBLIC include)
-target_link_libraries(core PUBLIC vec)
+# src/input.cpp использует GLFW (glfwGetKey и т.д.), поэтому core линкуется с glfw,
+# иначе при импорте модулей возникает "undefined symbol: glfwGetKey"
+target_link_libraries(core PUBLIC vec glfw)
 set_target_properties(core PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${LIB_OUTPUT_DIR}
     POSITION_INDEPENDENT_CODE ON

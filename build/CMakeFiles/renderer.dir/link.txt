@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC -O3 -march=native -DNDEBUG -shared -Wl,-soname,librenderer.so -o /home/user/Документы/Blocks/lib/librenderer.so CMakeFiles/renderer.dir/src/renderer.cpp.o  -Wl,-rpath,/home/user/Документы/Blocks/lib /home/user/Документы/Blocks/lib/libcore.so libglad.a /usr/lib/x86_64-linux-gnu/libglfw.so.3.3 /home/user/Документы/Blocks/lib/libvec.so

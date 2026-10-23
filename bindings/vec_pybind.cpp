@@ -300,31 +300,35 @@ PYBIND11_MODULE(vec_module, m) {
         .def_readwrite("x", &Vertex::x)
         .def_readwrite("y", &Vertex::y)
         .def_readwrite("z", &Vertex::z)
-        .def_readwrite("u", &Vertex::u)
-        .def_readwrite("v", &Vertex::v)
-        .def_readwrite("layer", &Vertex::layer)
-        .def_readwrite("anim_data", &Vertex::anim_data)
         .def_readwrite("block_light", &Vertex::block_light)
         .def_readwrite("sky_light", &Vertex::sky_light)
-        
+
         .def_property("position",
             [](const Vertex& v) { return Vec3f(v.x, v.y, v.z); },
             [](Vertex& v, const Vec3f& pos) { v.x = pos.x; v.y = pos.y; v.z = pos.z; }
         )
-        .def_property("uv",
-            [](const Vertex& v) { return Vec2f(v.u, v.v); },
-            [](Vertex& v, const Vec2f& uv) { v.u = uv.x; v.v = uv.y; }
-        )
-        
+
         .def("__repr__", [](const Vertex& v) {
-            return "Vertex(pos=(" + std::to_string(v.x) + ", " + std::to_string(v.y) + ", " + std::to_string(v.z) + 
-                   "), uv=(" + std::to_string(v.u) + ", " + std::to_string(v.v) + 
-                   "), layer=" + std::to_string(v.layer) + 
-                   ", anim_data=" + std::to_string(v.anim_data) + 
-                   ", block_light=" + std::to_string(v.block_light) + 
+            return "Vertex(pos=(" + std::to_string(v.x) + ", " + std::to_string(v.y) + ", " + std::to_string(v.z) +
+                   "), block_light=" + std::to_string(v.block_light) +
                    ", sky_light=" + std::to_string(v.sky_light) + ")";
         });
-    
+
+    py::class_<FaceData>(m, "FaceData")
+        .def(py::init<>())
+        .def_readwrite("u_0", &FaceData::u_0)
+        .def_readwrite("u_1", &FaceData::u_1)
+        .def_readwrite("u_2", &FaceData::u_2)
+        .def_readwrite("v_0", &FaceData::v_0)
+        .def_readwrite("v_1", &FaceData::v_1)
+        .def_readwrite("v_2", &FaceData::v_2)
+        .def_readwrite("layer", &FaceData::layer)
+        .def_readwrite("anim_data", &FaceData::anim_data)
+        .def("__repr__", [](const FaceData& f) {
+            return "FaceData(layer=" + std::to_string(f.layer) +
+                   ", anim_data=" + std::to_string(f.anim_data) + ")";
+        });
+
     py::class_<Transform>(m, "Transform")
         .def(py::init<>())
         .def(py::init<const Vec3f&, const Vec3r&, const Vec3f&>(), py::arg("position"), py::arg("rotation"), py::arg("scale"))

@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC -O3 -march=native -DNDEBUG -flto=auto -shared  -o /home/user/Документы/Blocks/python/texture_module.cpython-38-x86_64-linux-gnu.so CMakeFiles/texture_module.dir/bindings/texture_pybind.cpp.o  -Wl,-rpath,"\$ORIGIN/../lib" /home/user/Документы/Blocks/lib/libcore.so /home/user/Документы/Blocks/lib/libvec.so

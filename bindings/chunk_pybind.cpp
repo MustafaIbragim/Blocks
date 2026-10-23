@@ -115,6 +115,9 @@ PYBIND11_MODULE(chunk_module, m) {
         .def_property_readonly("light_np", [](Chunk& self) {
             return py::array_t<uint8_t>({Chunk::VOLUME}, {sizeof(uint8_t)}, self.light_data.data(), py::capsule(&self));
         })
+        .def_property_readonly("light_queue_level_np", [](Chunk& self) {
+            return py::array_t<uint8_t>({Chunk::VOLUME}, {sizeof(uint8_t)}, self.light_queue_level.data(), py::capsule(&self));
+        })
         .def_property_readonly("light_dirty_np", [](Chunk& self) {
             return py::array_t<uint64_t>({Chunk::FLAG_WORDS}, {sizeof(uint64_t)}, self.light_dirty.data(), py::capsule(&self));
         })

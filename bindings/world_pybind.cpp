@@ -14,6 +14,18 @@ PYBIND11_MODULE(world_module, m) {
     
     m.doc() = "World module";
     
+    py::class_<LightEngine>(m, "LightEngine")
+        .def("update", &LightEngine::update,
+             "Полный цикл: затемнение, затем освещение")
+        .def("remove_light", &LightEngine::remove_light, "Только затемнение")
+        .def("propagate_light", &LightEngine::propagate_light, "Только освещение")
+        .def("mark_neighborhood", &LightEngine::mark_neighborhood,
+             py::arg("chunk"), py::arg("local_pos"))
+        .def("mark_chunk_sources", &LightEngine::mark_chunk_sources,
+             py::arg("chunk"))
+        .def("has_pending", &LightEngine::has_pending)
+        .def("clear_queues", &LightEngine::clear_queues);
+    
     py::class_<World, std::shared_ptr<World>>(m, "World")
         .def(py::init<BlockManager&, TextureBlocksManager&, TextureManager&>(),
              py::arg("block_mgr"), py::arg("tex_blocks_mgr"), py::arg("tex_mgr"))
@@ -32,6 +44,12 @@ PYBIND11_MODULE(world_module, m) {
         // Доступ к блокам
         .def("get_block", &World::get_block, py::arg("world_pos"))
         .def("set_block", &World::set_block, py::arg("world_pos"), py::arg("block"))
+        .def("remove_block", &World::remove_block, py::arg("world_pos"))
+        
+        // Освещение
+        .def("get_light_engine", &World::get_light_engine,
+             py::return_value_policy::reference_internal)
+        .def("update_lighting", &World::update_lighting)
         
         // Управление мешами
         .def("rebuild_chunk_mesh", &World::rebuild_chunk_mesh, py::arg("chunk_pos"))

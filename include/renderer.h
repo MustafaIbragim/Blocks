@@ -10,6 +10,14 @@
 #include "texture.h"
 
 
+// GPU-формат грани: одна запись на каждый угол треугольника
+// (uv этого угла + layer/anim всей грани). Stride = 16 байт.
+struct GPUFaceAttr {
+    float u, v;
+    int32_t layer;
+    uint32_t anim_data;
+};
+
 struct ViewCam {
     Vec3f position;
     Vec3r rotation;
@@ -62,8 +70,8 @@ private:
     uint32_t block_texture_array_id;
     
     struct GPUMesh {
-        uint32_t vao, vbo, ebo;
-        uint32_t vertex_count, index_count;
+        uint32_t vao, vbo, fbo; // fbo — буфер данных граней (uv/layer/anim)
+        uint32_t vertex_count;
     };
     std::unordered_map<uint32_t, GPUMesh> block_meshes;
     std::unordered_map<uint32_t, uint32_t> entity_textures;
