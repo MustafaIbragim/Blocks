@@ -16,6 +16,8 @@ GLFW_KEY_SPACE = 32
 GLFW_KEY_LEFT_SHIFT = 340
 GLFW_KEY_ESCAPE = 256
 
+import numpy as np
+
 
 def test_renderer():
     print("=== Renderer + Input: Чистая архитектура ===")
@@ -79,7 +81,11 @@ def test_renderer():
     for i in range(6):
         dirt.set_face_texture(i, grass_tex_id if i == 3 else dirt_tex_id)
     
-    light_block_img = make_noise_texture((180, 218, 248),7, seed=34)
+    light_block_img = make_noise_texture((158, 198, 253), 2, seed=34)
+    np.array(light_block_img, copy=False)[0,:] = (100, 110, 120, 255)
+    np.array(light_block_img, copy=False)[15,:] = (100, 110, 120, 255)
+    np.array(light_block_img, copy=False)[:,0] = (100, 110, 120, 255)
+    np.array(light_block_img, copy=False)[:,15] = (100, 110, 120, 255)
     light_block_tex = tm.Texture([light_block_img], "dirt")
     
     light_block = bm.Block(1, "light_block")
