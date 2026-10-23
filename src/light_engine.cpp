@@ -2,16 +2,111 @@
 #include "world.h"
 #include <algorithm>
 
+
 namespace {
 constexpr int SIZE = static_cast<int>(Chunk::SIZE_XZ);
 constexpr int HEIGHT = static_cast<int>(Chunk::HEIGHT);
+constexpr int SLICE = SIZE * HEIGHT;
+constexpr int CENTER = LightEngine::CENTER;
 
-int floor_div(int value, int divisor) {
-    int q = value / divisor;
-    int r = value % divisor;
-    if (r < 0) --q;
-    return q;
+// Смещение соседа в 3x3x3.
+struct Offset {
+    int8_t dx, dy, dz;
+    int32_t delta;   // приращение плоского индекса внутри чанка
+    uint8_t dist;    // 8 - сторона, 12 - ребро, 14 - угол
+};
+
+constexpr int offset_index(int dx, int dy, int dz) {
+    return (dx + 1) + 3 * (dy + 1) + 9 * (dz + 1);
 }
+
+constexpr int nonzero_count(int dx, int dy, int dz) {
+    return (dx != 0) + (dy != 0) + (dz != 0);
+}
+
+constexpr int offset_distance(int n) {
+    return n == 1 ? 8 : (n == 2 ? 12 : 14);
+}
+
+constexpr std::array<Offset, 27> make_offsets() {
+    std::array<Offset, 27> result{};
+    for (int dz = -1; dz <= 1; ++dz) {
+        for (int dy = -1; dy <= 1; ++dy) {
+            for (int dx = -1; dx <= 1; ++dx) {
+                int n = nonzero_count(dx, dy, dz);
+                Offset o{};
+                o.dx = static_cast<int8_t>(dx);
+                o.dy = static_cast<int8_t>(dy);
+                o.dz = static_cast<int8_t>(dz);
+                o.delta = dx + dy * SIZE + dz * SLICE;
+                o.dist = static_cast<uint8_t>(n == 0 ? 0 : offset_distance(n));
+                result[offset_index(dx, dy, dz)] = o;
+            }
+        }
+    }
+    return result;
+}
+
+constexpr std::array<Offset, 27> OFFSETS = make_offsets();
+
+constexpr std::array<int, 6> make_side_indices() {
+    std::array<int, 6> result{};
+    int k = 0;
+    for (int i = 0; i < 27; ++i) {
+        const Offset& o = OFFSETS[i];
+        if (nonzero_count(o.dx, o.dy, o.dz) == 1) result[k++] = i;
+    }
+    return result;
+}
+
+// {индекс ребра, первый прилегающий side, второй прилегающий side}
+constexpr std::array<std::array<int, 3>, 12> make_edge_indices() {
+    std::array<std::array<int, 3>, 12> result{};
+    int k = 0;
+    for (int i = 0; i < 27; ++i) {
+        const Offset& o = OFFSETS[i];
+        if (nonzero_count(o.dx, o.dy, o.dz) != 2) continue;
+
+        int s1 = 0, s2 = 0;
+        if (o.dx != 0 && o.dy != 0) {
+            s1 = offset_index(0, o.dy, 0);
+            s2 = offset_index(o.dx, 0, 0);
+        } else if (o.dx != 0 && o.dz != 0) {
+            s1 = offset_index(0, 0, o.dz);
+            s2 = offset_index(o.dx, 0, 0);
+        } else {
+            s1 = offset_index(0, 0, o.dz);
+            s2 = offset_index(0, o.dy, 0);
+        }
+        result[k++] = {i, s1, s2};
+    }
+    return result;
+}
+
+// {индекс угла, три прилегающих ребра}
+constexpr std::array<std::array<int, 4>, 8> make_corner_indices() {
+    std::array<std::array<int, 4>, 8> result{};
+    int k = 0;
+    for (int i = 0; i < 27; ++i) {
+        const Offset& o = OFFSETS[i];
+        if (nonzero_count(o.dx, o.dy, o.dz) != 3) continue;
+        result[k++] = {
+            i,
+            offset_index(0, o.dy, o.dz),
+            offset_index(o.dx, 0, o.dz),
+            offset_index(o.dx, o.dy, 0)
+        };
+    }
+    return result;
+}
+
+constexpr std::array<int, 6> SIDES = make_side_indices();
+constexpr std::array<std::array<int, 3>, 12> EDGES = make_edge_indices();
+constexpr std::array<std::array<int, 4>, 8> CORNERS = make_corner_indices();
+
+inline int index_x(uint32_t index) { return static_cast<int>(index % SIZE); }
+inline int index_y(uint32_t index) { return static_cast<int>((index / SIZE) % HEIGHT); }
+inline int index_z(uint32_t index) { return static_cast<int>(index / SLICE); }
 } // namespace
 
 
@@ -21,80 +116,74 @@ LightEngine::LightEngine(World& world) : world(world) {
 
 
 // ============================================================================
-// Индексация 3x3x3
+// Доступ к соседям
 // ============================================================================
 
-int LightEngine::offset_index(int dx, int dy, int dz) {
-    return (dx + 1) + 3 * (dy + 1) + 9 * (dz + 1);
+bool LightEngine::can_use_fast(uint32_t index) {
+    int x = index_x(index);
+    int z = index_z(index);
+    return x > 0 && x < SIZE - 1 && z > 0 && z < SIZE - 1;
 }
 
-void LightEngine::index_offset(int index, int& dx, int& dy, int& dz) {
-    dx = index % 3 - 1;
-    dy = (index / 3) % 3 - 1;
-    dz = index / 9 - 1;
-}
+void LightEngine::resolve_neighborhood(const Chunk& base, int x, int y, int z,
+                                       std::array<Chunk*, 27>& out_chunks,
+                                       std::array<uint32_t, 27>& out_indices) const {
+    // Один раз находим чанки для девяти комбинаций (dx, dz). В отличие от
+    // world.get_chunk() здесь нет хеширования и копирования shared_ptr.
+    Chunk* by_xz[3][3];
+    for (int sx = -1; sx <= 1; ++sx) {
+        for (int sz = -1; sz <= 1; ++sz) {
+            Chunk* found = const_cast<Chunk*>(&base);
+            if (sx < 0) found = found->get_neighbor(ChunkNeighborDir::NegX);
+            else if (sx > 0) found = found->get_neighbor(ChunkNeighborDir::PosX);
 
-int LightEngine::offset_distance(int dx, int dy, int dz) {
-    int n = (dx != 0) + (dy != 0) + (dz != 0);
-    if (n == 1) return 8;   // сторона
-    if (n == 2) return 12;  // ребро
-    return 14;              // угол
-}
+            if (found) {
+                if (sz < 0) found = found->get_neighbor(ChunkNeighborDir::NegZ);
+                else if (sz > 0) found = found->get_neighbor(ChunkNeighborDir::PosZ);
+            }
 
-
-// ============================================================================
-// fast / slow доступ
-// ============================================================================
-
-bool LightEngine::can_use_fast(int x, int y, int z) {
-    return x > 0 && x < SIZE - 1 &&
-           y > 0 && y < HEIGHT - 1 &&
-           z > 0 && z < SIZE - 1;
-}
-
-uint8_t LightEngine::opacity_fast(const Chunk& chunk, int x, int y, int z) {
-    return chunk.opacity_data[Chunk::coords_to_global_index(
-        static_cast<uint8_t>(x), static_cast<uint16_t>(y), static_cast<uint8_t>(z))];
-}
-
-uint8_t LightEngine::opacity_slow(const Chunk& chunk, int x, int y, int z) const {
-    if (y < 0 || y >= HEIGHT) return 0;
-    if (x >= 0 && x < SIZE && z >= 0 && z < SIZE) {
-        return opacity_fast(chunk, x, y, z);
+            // Редкий случай: диагональный чанк загружен, а кардинальный нет.
+            // Сохраняем прежнее поведение (поиск по миру) для совместимости.
+            if (!found) {
+                found = world.get_chunk_ptr(
+                    Vec2i(base.chunk_xz.x + sx, base.chunk_xz.y + sz));
+            }
+            by_xz[sx + 1][sz + 1] = found;
+        }
     }
 
-    int32_t wx = chunk.chunk_xz.x * SIZE + x;
-    int32_t wz = chunk.chunk_xz.y * SIZE + z;
-    int cx = floor_div(wx, SIZE);
-    int cz = floor_div(wz, SIZE);
-    auto neighbor = world.get_chunk(Vec2i(cx, cz));
-    if (!neighbor) return 0; // незагруженный чанк считаем воздухом
+    for (int i = 0; i < 27; ++i) {
+        const Offset& o = OFFSETS[i];
+        int ny = y + o.dy;
+        if (ny < 0 || ny >= HEIGHT) {
+            out_chunks[i] = nullptr;
+            out_indices[i] = 0;
+            continue;
+        }
 
-    int lx = wx - cx * SIZE;
-    int lz = wz - cz * SIZE;
-    return opacity_fast(*neighbor, lx, y, lz);
-}
+        // Чанк меняется только если координата реально выходит за границу,
+        // а не просто если смещение отрицательное/положительное.
+        int csx = 0;
+        int csz = 0;
+        if (o.dx < 0 && x == 0) csx = -1;
+        else if (o.dx > 0 && x == SIZE - 1) csx = 1;
+        if (o.dz < 0 && z == 0) csz = -1;
+        else if (o.dz > 0 && z == SIZE - 1) csz = 1;
 
-bool LightEngine::locate_neighbor(const Chunk& base, int x, int y, int z,
-                                  Chunk*& out_chunk, Vec3i& out_local) const {
-    if (y < 0 || y >= HEIGHT) return false;
+        Chunk* target = by_xz[csx + 1][csz + 1];
+        if (!target) {
+            out_chunks[i] = nullptr;
+            out_indices[i] = 0;
+            continue;
+        }
 
-    if (x >= 0 && x < SIZE && z >= 0 && z < SIZE) {
-        out_chunk = const_cast<Chunk*>(&base);
-        out_local = Vec3i(x, y, z);
-        return true;
+        int lx = (x + o.dx) & (SIZE - 1);
+        int lz = (z + o.dz) & (SIZE - 1);
+        out_chunks[i] = target;
+        out_indices[i] = Chunk::coords_to_global_index(
+            static_cast<uint8_t>(lx), static_cast<uint16_t>(ny),
+            static_cast<uint8_t>(lz));
     }
-
-    int32_t wx = base.chunk_xz.x * SIZE + x;
-    int32_t wz = base.chunk_xz.y * SIZE + z;
-    int cx = floor_div(wx, SIZE);
-    int cz = floor_div(wz, SIZE);
-    auto neighbor = world.get_chunk(Vec2i(cx, cz));
-    if (!neighbor) return false;
-
-    out_chunk = neighbor.get();
-    out_local = Vec3i(wx - cx * SIZE, y, wz - cz * SIZE);
-    return true;
 }
 
 
@@ -102,105 +191,115 @@ bool LightEngine::locate_neighbor(const Chunk& base, int x, int y, int z,
 // full_opacity
 // ============================================================================
 
-void LightEngine::fill_full_opacity_fast(const Chunk& chunk, int x, int y, int z) {
-    full_opacity.fill(255);
-    full_opacity[CENTER] = opacity_fast(chunk, x, y, z);
+void LightEngine::fill_full_opacity_fast(const Chunk& chunk, uint32_t index, int y) {
+    uint8_t* fo = full_opacity.data();
+    std::fill(fo, fo + 27, static_cast<uint8_t>(255));
+
+    const uint8_t* opacity = chunk.opacity_data.data();
+    fo[CENTER] = opacity[index];
 
     // 6 сторон
-    for (int i = 0; i < 27; ++i) {
-        if (i == CENTER) continue;
-        int dx, dy, dz;
-        index_offset(i, dx, dy, dz);
-        int n = (dx != 0) + (dy != 0) + (dz != 0);
-        if (n != 1) continue;
-        full_opacity[i] = clamp_u8(
-            static_cast<int>(opacity_fast(chunk, x + dx, y + dy, z + dz)) + 8);
+    for (int i : SIDES) {
+        const Offset& o = OFFSETS[i];
+        int ny = y + o.dy;
+        int value = (ny >= 0 && ny < HEIGHT)
+            ? static_cast<int>(opacity[index + o.delta])
+            : 0;
+        fo[i] = clamp_u8(value + 8);
     }
 
     // 12 рёбер: минимум из двух прилегающих сторон + 4
-    for (int i = 0; i < 27; ++i) {
-        if (i == CENTER) continue;
-        int dx, dy, dz;
-        index_offset(i, dx, dy, dz);
-        int n = (dx != 0) + (dy != 0) + (dz != 0);
-        if (n != 2) continue;
-
-        uint8_t a = 255, b = 255;
-        bool first = true;
-        if (dx != 0) { a = full_opacity[offset_index(0, dy, dz)]; first = false; }
-        if (dy != 0) {
-            uint8_t v = full_opacity[offset_index(dx, 0, dz)];
-            if (first) { a = v; first = false; } else { b = v; }
-        }
-        if (dz != 0) {
-            uint8_t v = full_opacity[offset_index(dx, dy, 0)];
-            if (first) { a = v; } else { b = v; }
-        }
-        full_opacity[i] = clamp_u8(static_cast<int>(std::min(a, b)) + 4);
+    for (const auto& edge : EDGES) {
+        fo[edge[0]] = clamp_u8(std::min(fo[edge[1]], fo[edge[2]]) + 4);
     }
 
     // 8 углов: минимум из прилегающих рёбер + 2
-    for (int i = 0; i < 27; ++i) {
-        if (i == CENTER) continue;
-        int dx, dy, dz;
-        index_offset(i, dx, dy, dz);
-        int n = (dx != 0) + (dy != 0) + (dz != 0);
-        if (n != 3) continue;
-
-        uint8_t m = full_opacity[offset_index(0, dy, dz)];
-        m = std::min(m, full_opacity[offset_index(dx, 0, dz)]);
-        m = std::min(m, full_opacity[offset_index(dx, dy, 0)]);
-        full_opacity[i] = clamp_u8(static_cast<int>(m) + 2);
+    for (const auto& corner : CORNERS) {
+        int m = std::min(static_cast<int>(fo[corner[1]]),
+                         static_cast<int>(fo[corner[2]]));
+        m = std::min(m, static_cast<int>(fo[corner[3]]));
+        fo[corner[0]] = clamp_u8(m + 2);
     }
 }
 
-void LightEngine::fill_full_opacity_slow(const Chunk& chunk, int x, int y, int z) {
-    full_opacity.fill(255);
-    full_opacity[CENTER] = opacity_slow(chunk, x, y, z);
+void LightEngine::fill_full_opacity_slow(const Chunk& chunk, uint32_t center_index,
+                                         const std::array<Chunk*, 27>& chunks,
+                                         const std::array<uint32_t, 27>& indices) {
+    uint8_t* fo = full_opacity.data();
+    std::fill(fo, fo + 27, static_cast<uint8_t>(255));
+
+    fo[CENTER] = chunk.opacity_data[center_index];
+
+    for (int i : SIDES) {
+        int value = chunks[i]
+            ? static_cast<int>(chunks[i]->opacity_data[indices[i]])
+            : 0;
+        fo[i] = clamp_u8(value + 8);
+    }
+
+    for (const auto& edge : EDGES) {
+        fo[edge[0]] = clamp_u8(std::min(fo[edge[1]], fo[edge[2]]) + 4);
+    }
+
+    for (const auto& corner : CORNERS) {
+        int m = std::min(static_cast<int>(fo[corner[1]]),
+                         static_cast<int>(fo[corner[2]]));
+        m = std::min(m, static_cast<int>(fo[corner[3]]));
+        fo[corner[0]] = clamp_u8(m + 2);
+    }
+}
+
+
+// ============================================================================
+// Эмиссия и оценка света
+// ============================================================================
+
+uint8_t LightEngine::emission(const Chunk& chunk, uint32_t index) const {
+    // Прямое чтение id без промежуточных проверок границ.
+    uint32_t z = index / SLICE;
+    uint32_t rem = index - z * SLICE;
+    uint32_t y = rem / SIZE;
+    uint32_t x = rem - y * SIZE;
+
+    const ChunkNugget& nugget = chunk.nuggets[y / ChunkNugget::SIZE];
+    uint16_t id = nugget.block_ids[
+        x + (y % ChunkNugget::SIZE) * ChunkNugget::SIZE +
+        z * ChunkNugget::SIZE * ChunkNugget::SIZE];
+    return world.get_block_mgr().get_light(id);
+}
+
+uint8_t LightEngine::compute_light_fast(const Chunk& chunk, uint32_t index) const {
+    int best = emission(chunk, index);
+    int center_opacity = chunk.opacity_data[index];
+    int y = index_y(index);
+    const uint8_t* light = chunk.light_data.data();
 
     for (int i = 0; i < 27; ++i) {
         if (i == CENTER) continue;
-        int dx, dy, dz;
-        index_offset(i, dx, dy, dz);
-        int n = (dx != 0) + (dy != 0) + (dz != 0);
-        if (n != 1) continue;
-        full_opacity[i] = clamp_u8(
-            static_cast<int>(opacity_slow(chunk, x + dx, y + dy, z + dz)) + 8);
+        const Offset& o = OFFSETS[i];
+        int ny = y + o.dy;
+        if (ny < 0 || ny >= HEIGHT) continue;
+        int candidate = static_cast<int>(light[index + o.delta]) -
+                        static_cast<int>(o.dist) - center_opacity;
+        if (candidate > best) best = candidate;
     }
+    return clamp_u8(best);
+}
+
+uint8_t LightEngine::compute_light_slow(const std::array<Chunk*, 27>& chunks,
+                                        const std::array<uint32_t, 27>& indices) const {
+    uint32_t center_index = indices[CENTER];
+    int best = emission(*chunks[CENTER], center_index);
+    int center_opacity = chunks[CENTER]->opacity_data[center_index];
 
     for (int i = 0; i < 27; ++i) {
-        if (i == CENTER) continue;
-        int dx, dy, dz;
-        index_offset(i, dx, dy, dz);
-        int n = (dx != 0) + (dy != 0) + (dz != 0);
-        if (n != 2) continue;
-
-        uint8_t a = 255, b = 255;
-        bool first = true;
-        if (dx != 0) { a = full_opacity[offset_index(0, dy, dz)]; first = false; }
-        if (dy != 0) {
-            uint8_t v = full_opacity[offset_index(dx, 0, dz)];
-            if (first) { a = v; first = false; } else { b = v; }
-        }
-        if (dz != 0) {
-            uint8_t v = full_opacity[offset_index(dx, dy, 0)];
-            if (first) { a = v; } else { b = v; }
-        }
-        full_opacity[i] = clamp_u8(static_cast<int>(std::min(a, b)) + 4);
+        if (i == CENTER || !chunks[i]) continue;
+        const Offset& o = OFFSETS[i];
+        int candidate = static_cast<int>(chunks[i]->light_data[indices[i]]) -
+                        static_cast<int>(o.dist) - center_opacity;
+        if (candidate > best) best = candidate;
     }
-
-    for (int i = 0; i < 27; ++i) {
-        if (i == CENTER) continue;
-        int dx, dy, dz;
-        index_offset(i, dx, dy, dz);
-        int n = (dx != 0) + (dy != 0) + (dz != 0);
-        if (n != 3) continue;
-
-        uint8_t m = full_opacity[offset_index(0, dy, dz)];
-        m = std::min(m, full_opacity[offset_index(dx, 0, dz)]);
-        m = std::min(m, full_opacity[offset_index(dx, dy, 0)]);
-        full_opacity[i] = clamp_u8(static_cast<int>(m) + 2);
-    }
+    return clamp_u8(best);
 }
 
 
@@ -208,126 +307,165 @@ void LightEngine::fill_full_opacity_slow(const Chunk& chunk, int x, int y, int z
 // Очереди
 // ============================================================================
 
-void LightEngine::push_dark(Chunk& chunk, const Vec3i& local, uint8_t level) {
+void LightEngine::push_dark(Chunk& chunk, uint32_t index, uint8_t level) {
     if (level == 0) return;
-    auto& list = can_use_fast(local.x, local.y, local.z)
+    auto& list = can_use_fast(index)
         ? dark_lists.fast[level - 1]
         : dark_lists.slow[level - 1];
-    list.push_back({&chunk, local});
+    list.push_back({&chunk, index});
 }
 
-void LightEngine::push_light(Chunk& chunk, const Vec3i& local, uint8_t level) {
+void LightEngine::push_light(Chunk& chunk, uint32_t index, uint8_t level) {
     if (level == 0) return;
-    auto& list = can_use_fast(local.x, local.y, local.z)
+    auto& list = can_use_fast(index)
         ? light_lists.fast[level - 1]
         : light_lists.slow[level - 1];
-    list.push_back({&chunk, local});
+    list.push_back({&chunk, index});
 }
 
-void LightEngine::schedule_dark(Chunk& chunk, const Vec3i& local) {
-    uint32_t idx = Chunk::coords_to_global_index(
-        static_cast<uint8_t>(local.x), static_cast<uint16_t>(local.y),
-        static_cast<uint8_t>(local.z));
-
-    uint8_t level = chunk.light_data[idx];
+void LightEngine::schedule_dark(Chunk& chunk, uint32_t index) {
+    uint8_t level = chunk.light_data[index];
     if (level == 0) return;
-    if (chunk.is_light_dirty(idx)) return;
+    if (chunk.is_light_dirty(index)) return;
 
-    chunk.mark_light_dirty(idx, true);
-    push_dark(chunk, local, level);
+    chunk.mark_light_dirty(index, true);
+    push_dark(chunk, index, level);
 }
 
-void LightEngine::schedule_light(Chunk& chunk, const Vec3i& local, uint8_t level) {
+void LightEngine::schedule_light(Chunk& chunk, uint32_t index, uint8_t level) {
     if (level == 0) return;
+    if (level <= chunk.light_queue_level[index]) return;
 
-    uint32_t idx = Chunk::coords_to_global_index(
-        static_cast<uint8_t>(local.x), static_cast<uint16_t>(local.y),
-        static_cast<uint8_t>(local.z));
-
-    if (level <= chunk.light_queue_level[idx]) return;
-
-    chunk.light_queue_level[idx] = level;
-    chunk.mark_light_dirty(idx, true);
-    push_light(chunk, local, level);
+    chunk.light_queue_level[index] = level;
+    chunk.mark_light_dirty(index, true);
+    push_light(chunk, index, level);
 }
 
-void LightEngine::schedule_light_source(Chunk& chunk, const Vec3i& local) {
-    uint16_t id = chunk.get_block_id(
-        static_cast<uint8_t>(local.x), static_cast<uint16_t>(local.y),
-        static_cast<uint8_t>(local.z));
-    if (id == 0) return;
-    auto block = world.get_block_mgr().get_block(id);
-    if (!block || block->light == 0) return;
-
-    schedule_light(chunk, local, block->light);
+void LightEngine::schedule_light_source(Chunk& chunk, uint32_t index) {
+    uint8_t level = emission(chunk, index);
+    if (level == 0) return;
+    schedule_light(chunk, index, level);
 }
 
 void LightEngine::mark_neighborhood(Chunk& chunk, const Vec3i& local_pos) {
-    for (int dz = -1; dz <= 1; ++dz) {
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dx = -1; dx <= 1; ++dx) {
-                Chunk* target = nullptr;
-                Vec3i target_local;
-                if (!locate_neighbor(chunk, local_pos.x + dx, local_pos.y + dy,
-                                     local_pos.z + dz, target, target_local)) {
-                    continue;
-                }
+    std::array<Chunk*, 27> chunks;
+    std::array<uint32_t, 27> indices;
+    resolve_neighborhood(chunk, local_pos.x, local_pos.y, local_pos.z,
+                         chunks, indices);
 
-                uint32_t idx = Chunk::coords_to_global_index(
-                    static_cast<uint8_t>(target_local.x),
-                    static_cast<uint16_t>(target_local.y),
-                    static_cast<uint8_t>(target_local.z));
+    for (int i = 0; i < 27; ++i) {
+        Chunk* target_chunk = chunks[i];
+        if (!target_chunk) continue;
+        uint32_t index = indices[i];
+        bool center = (i == CENTER);
 
-                bool center = (dx == 0 && dy == 0 && dz == 0);
-                if (center) {
-                    // Изменённый блок перепланируем принудительно: старый свет
-                    // должен быть снят, даже если блок уже был помечен.
-                    target->mark_light_dirty(idx, false);
-                    target->light_queue_level[idx] = 0;
-                }
+        if (center) {
+            // Изменённый блок перепланируем принудительно: старый свет
+            // должен быть снят, даже если блок уже был помечен.
+            target_chunk->mark_light_dirty(index, false);
+            target_chunk->light_queue_level[index] = 0;
+        }
 
-                if (target->light_data[idx] > 0) {
-                    if (center) {
-                        target->mark_light_dirty(idx, true);
-                        push_dark(*target, target_local, target->light_data[idx]);
-                    } else {
-                        schedule_dark(*target, target_local);
-                    }
-                } else {
-                    schedule_light_source(*target, target_local);
-                }
+        if (target_chunk->light_data[index] > 0) {
+            if (center) {
+                target_chunk->mark_light_dirty(index, true);
+                push_dark(*target_chunk, index, target_chunk->light_data[index]);
+            } else {
+                schedule_dark(*target_chunk, index);
             }
+        } else {
+            schedule_light_source(*target_chunk, index);
+        }
+    }
+}
+
+void LightEngine::mark_block_changed(Chunk& chunk, const Vec3i& local_pos,
+                                     uint8_t old_opacity, uint8_t new_opacity,
+                                     uint8_t old_light, uint8_t new_light) {
+    uint32_t index = Chunk::coords_to_global_index(
+        static_cast<uint8_t>(local_pos.x), static_cast<uint16_t>(local_pos.y),
+        static_cast<uint8_t>(local_pos.z));
+
+    const bool can_decrease = (new_opacity > old_opacity) || (new_light < old_light);
+    const bool can_increase = (new_opacity < old_opacity) || (new_light > old_light);
+
+    if (!can_decrease && !can_increase) {
+        // Блок заменён на такой же по оптическим свойствам — поле света
+        // не меняется. Снимаем флаг, который мог выставить Chunk::set_block.
+        chunk.mark_light_dirty(index, false);
+        return;
+    }
+
+    const bool dark_seeded = can_decrease && chunk.light_data[index] > 0;
+    if (dark_seeded) {
+        // Только изменённая клетка является семенем затемнения. Остальные
+        // 26 клеток проверяются процессом затемнения и затрагиваются лишь
+        // тогда, когда их свет действительно зависел от изменённого блока.
+        chunk.mark_light_dirty(index, false);
+        push_dark(chunk, index, chunk.light_data[index]);
+    }
+
+    if (can_increase && !dark_seeded) {
+        // Свет может только вырасти: достаточно пересчитать изменённую
+        // клетку и дать распространению дойти до соседей.
+        if (can_use_fast(index)) {
+            uint8_t level = compute_light_fast(chunk, index);
+            schedule_light(chunk, index, level);
+        } else {
+            std::array<Chunk*, 27> chunks;
+            std::array<uint32_t, 27> indices;
+            resolve_neighborhood(chunk, local_pos.x, local_pos.y, local_pos.z,
+                                 chunks, indices);
+            uint8_t level = compute_light_slow(chunks, indices);
+            schedule_light(chunk, index, level);
         }
     }
 }
 
 void LightEngine::mark_chunk_sources(Chunk& chunk) {
+    const BlockManager& block_mgr = world.get_block_mgr();
     for (auto& nugget : chunk.nuggets) {
+        uint16_t base_y = static_cast<uint16_t>(nugget.local_y_index *
+                                               ChunkNugget::SIZE);
         for (uint16_t i = 0; i < ChunkNugget::BLOCKS_COUNT; ++i) {
             uint16_t id = nugget.block_ids[i];
             if (id == 0) continue;
-
-            auto block = world.get_block_mgr().get_block(id);
-            if (!block || block->light == 0) continue;
+            if (block_mgr.get_light(id) == 0) continue;
 
             Vec3i lc = ChunkNugget::index_to_coords(i);
-            uint16_t gy = static_cast<uint16_t>(nugget.local_y_index * ChunkNugget::SIZE +
-                                                static_cast<uint16_t>(lc.y));
-            Vec3i local(lc.x, gy, lc.z);
-            schedule_light(chunk, local, block->light);
+            uint32_t index = Chunk::coords_to_global_index(
+                static_cast<uint8_t>(lc.x),
+                static_cast<uint16_t>(base_y + lc.y),
+                static_cast<uint8_t>(lc.z));
+            schedule_light(chunk, index, block_mgr.get_light(id));
         }
     }
 }
 
-void LightEngine::mark_chunk_border(Chunk& chunk) {
+void LightEngine::mark_chunk_border(Chunk& chunk, bool allow_decrease) {
+    auto process = [&](int x, int y, int z) {
+        uint32_t index = Chunk::coords_to_global_index(
+            static_cast<uint8_t>(x), static_cast<uint16_t>(y),
+            static_cast<uint8_t>(z));
+        if (allow_decrease) {
+            // Свет в соседних чанках мог уменьшиться — запускаем затемнение.
+            schedule_dark(chunk, index);
+        } else {
+            // Свет может только вырасти: пересчитываем клетку и даём свету
+            // распространиться в только что загруженное пространство.
+            uint8_t level = chunk.light_data[index];
+            if (level > 0) schedule_light(chunk, index, level);
+        }
+    };
+
     for (int y = 0; y < HEIGHT; ++y) {
         for (int x = 0; x < SIZE; ++x) {
-            schedule_dark(chunk, Vec3i(x, y, 0));
-            schedule_dark(chunk, Vec3i(x, y, SIZE - 1));
+            process(x, y, 0);
+            process(x, y, SIZE - 1);
         }
         for (int z = 1; z < SIZE - 1; ++z) {
-            schedule_dark(chunk, Vec3i(0, y, z));
-            schedule_dark(chunk, Vec3i(SIZE - 1, y, z));
+            process(0, y, z);
+            process(SIZE - 1, y, z);
         }
     }
 }
@@ -369,11 +507,7 @@ void LightEngine::clear_queues() {
     auto reset_dark = [](std::array<std::vector<Entry>, LEVEL_COUNT>& lists) {
         for (auto& list : lists) {
             for (const Entry& entry : list) {
-                uint32_t idx = Chunk::coords_to_global_index(
-                    static_cast<uint8_t>(entry.local.x),
-                    static_cast<uint16_t>(entry.local.y),
-                    static_cast<uint8_t>(entry.local.z));
-                entry.chunk->mark_light_dirty(idx, false);
+                entry.chunk->mark_light_dirty(entry.index, false);
             }
             list.clear();
         }
@@ -382,13 +516,9 @@ void LightEngine::clear_queues() {
     auto reset_light = [](std::array<std::vector<Entry>, LEVEL_COUNT>& lists) {
         for (int level = 1; level <= LEVEL_COUNT; ++level) {
             for (const Entry& entry : lists[level - 1]) {
-                uint32_t idx = Chunk::coords_to_global_index(
-                    static_cast<uint8_t>(entry.local.x),
-                    static_cast<uint16_t>(entry.local.y),
-                    static_cast<uint8_t>(entry.local.z));
-                entry.chunk->mark_light_dirty(idx, false);
-                if (entry.chunk->light_queue_level[idx] == level) {
-                    entry.chunk->light_queue_level[idx] = 0;
+                entry.chunk->mark_light_dirty(entry.index, false);
+                if (entry.chunk->light_queue_level[entry.index] == level) {
+                    entry.chunk->light_queue_level[entry.index] = 0;
                 }
             }
             lists[level - 1].clear();
@@ -409,98 +539,102 @@ void LightEngine::clear_queues() {
 
 void LightEngine::process_dark_entry(const Entry& entry, bool fast) {
     Chunk& chunk = *entry.chunk;
-    int x = entry.local.x;
-    int y = entry.local.y;
-    int z = entry.local.z;
-    uint32_t idx = Chunk::coords_to_global_index(
-        static_cast<uint8_t>(x), static_cast<uint16_t>(y), static_cast<uint8_t>(z));
+    uint32_t index = entry.index;
 
-    uint8_t light = chunk.light_data[idx];
-    chunk.mark_light_dirty(idx, false);
-
+    uint8_t light = chunk.light_data[index];
+    chunk.mark_light_dirty(index, false);
     if (light == 0) return;
 
-    if (fast) fill_full_opacity_fast(chunk, x, y, z);
-    else fill_full_opacity_slow(chunk, x, y, z);
+    if (fast) {
+        int y = index_y(index);
+        fill_full_opacity_fast(chunk, index, y);
 
-    for (int i = 0; i < 27; ++i) {
-        if (i == CENTER) continue;
-        int dx, dy, dz;
-        index_offset(i, dx, dy, dz);
+        const uint8_t* light_data = chunk.light_data.data();
+        const uint8_t* opacity_data = chunk.opacity_data.data();
 
-        Chunk* nchunk = nullptr;
-        Vec3i nlocal;
-        if (!locate_neighbor(chunk, x + dx, y + dy, z + dz, nchunk, nlocal)) {
-            continue;
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER) continue;
+            const Offset& o = OFFSETS[i];
+            int ny = y + o.dy;
+            if (ny < 0 || ny >= HEIGHT) continue;
+
+            uint32_t nindex = index + o.delta;
+            uint8_t nlight = light_data[nindex];
+            if (nlight == 0) continue;
+
+            int n_opacity = opacity_data[nindex];
+            int expected_forward = static_cast<int>(light) - full_opacity[i];
+            int expected_reverse = static_cast<int>(light) - o.dist - n_opacity;
+            int expected = std::max(expected_forward, expected_reverse);
+            if (nlight <= expected) schedule_dark(chunk, nindex);
         }
+    } else {
+        std::array<Chunk*, 27> chunks;
+        std::array<uint32_t, 27> indices;
+        resolve_neighborhood(chunk, index_x(index), index_y(index), index_z(index),
+                             chunks, indices);
+        fill_full_opacity_slow(chunk, index, chunks, indices);
 
-        uint32_t nidx = Chunk::coords_to_global_index(
-            static_cast<uint8_t>(nlocal.x), static_cast<uint16_t>(nlocal.y),
-            static_cast<uint8_t>(nlocal.z));
-        uint8_t nlight = nchunk->light_data[nidx];
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER || !chunks[i]) continue;
+            Chunk& nchunk = *chunks[i];
+            uint32_t nindex = indices[i];
 
-        // Сосед мог получить свой свет от текущего блока. Проверяем оба
-        // направления: свет при распространении считается по full_opacity,
-        // а при пересчёте блока — через opacity этого блока и расстояние.
-        int n_opacity = nchunk->opacity_data[nidx];
-        int expected_forward = static_cast<int>(light) - static_cast<int>(full_opacity[i]);
-        int expected_reverse = static_cast<int>(light) -
-                               offset_distance(dx, dy, dz) - n_opacity;
-        int expected = std::max(expected_forward, expected_reverse);
-        if (expected > 0 && nlight > 0 && static_cast<int>(nlight) <= expected) {
-            schedule_dark(*nchunk, nlocal);
+            uint8_t nlight = nchunk.light_data[nindex];
+            if (nlight == 0) continue;
+
+            int n_opacity = nchunk.opacity_data[nindex];
+            int expected_forward = static_cast<int>(light) - full_opacity[i];
+            int expected_reverse = static_cast<int>(light) - OFFSETS[i].dist - n_opacity;
+            int expected = std::max(expected_forward, expected_reverse);
+            if (nlight <= expected) schedule_dark(nchunk, nindex);
         }
     }
 
-    chunk.light_data[idx] = 0;
+    chunk.light_data[index] = 0;
     darkened_blocks.push_back(entry);
 }
 
 void LightEngine::seed_after_darkening() {
     for (const Entry& entry : darkened_blocks) {
         Chunk& chunk = *entry.chunk;
-        int x = entry.local.x;
-        int y = entry.local.y;
-        int z = entry.local.z;
-        uint32_t idx = Chunk::coords_to_global_index(
-            static_cast<uint8_t>(x), static_cast<uint16_t>(y), static_cast<uint8_t>(z));
+        uint32_t index = entry.index;
 
-        if (chunk.light_data[idx] != 0) continue;
+        if (chunk.light_data[index] != 0) continue;
 
-        if (can_use_fast(x, y, z)) fill_full_opacity_fast(chunk, x, y, z);
-        else fill_full_opacity_slow(chunk, x, y, z);
-
-        int center_opacity = full_opacity[CENTER];
+        int center_opacity = chunk.opacity_data[index];
         int best = 0;
 
-        for (int i = 0; i < 27; ++i) {
-            if (i == CENTER) continue;
-            int dx, dy, dz;
-            index_offset(i, dx, dy, dz);
-
-            Chunk* nchunk = nullptr;
-            Vec3i nlocal;
-            if (!locate_neighbor(chunk, x + dx, y + dy, z + dz, nchunk, nlocal)) {
-                continue;
+        if (can_use_fast(index)) {
+            int y = index_y(index);
+            const uint8_t* light_data = chunk.light_data.data();
+            for (int i = 0; i < 27; ++i) {
+                if (i == CENTER) continue;
+                const Offset& o = OFFSETS[i];
+                int ny = y + o.dy;
+                if (ny < 0 || ny >= HEIGHT) continue;
+                int candidate = static_cast<int>(light_data[index + o.delta]) -
+                                o.dist - center_opacity;
+                if (candidate > best) best = candidate;
             }
-
-            uint32_t nidx = Chunk::coords_to_global_index(
-                static_cast<uint8_t>(nlocal.x), static_cast<uint16_t>(nlocal.y),
-                static_cast<uint8_t>(nlocal.z));
-            int candidate = static_cast<int>(nchunk->light_data[nidx]) -
-                            offset_distance(dx, dy, dz) - center_opacity;
-            if (candidate > best) best = candidate;
+        } else {
+            std::array<Chunk*, 27> chunks;
+            std::array<uint32_t, 27> indices;
+            resolve_neighborhood(chunk, index_x(index), index_y(index), index_z(index),
+                                 chunks, indices);
+            for (int i = 0; i < 27; ++i) {
+                if (i == CENTER || !chunks[i]) continue;
+                int candidate = static_cast<int>(chunks[i]->light_data[indices[i]]) -
+                                OFFSETS[i].dist - center_opacity;
+                if (candidate > best) best = candidate;
+            }
         }
 
-        uint16_t block_id = chunk.get_block_id(
-            static_cast<uint8_t>(x), static_cast<uint16_t>(y), static_cast<uint8_t>(z));
-        auto block = world.get_block_mgr().get_block(block_id);
-        int emission = block ? static_cast<int>(block->light) : 0;
-        int seed = std::max(best, emission);
+        int emission_level = emission(chunk, index);
+        int seed = std::max(best, emission_level);
 
         if (seed > 0) {
-            schedule_light(chunk, entry.local,
-                           static_cast<uint8_t>(std::min(seed, 255)));
+            schedule_light(chunk, index, static_cast<uint8_t>(std::min(seed, 255)));
         }
     }
     darkened_blocks.clear();
@@ -533,77 +667,88 @@ void LightEngine::remove_light() {
 
 void LightEngine::process_light_entry(const Entry& entry, int level, bool fast) {
     Chunk& chunk = *entry.chunk;
-    int x = entry.local.x;
-    int y = entry.local.y;
-    int z = entry.local.z;
-    uint32_t idx = Chunk::coords_to_global_index(
-        static_cast<uint8_t>(x), static_cast<uint16_t>(y), static_cast<uint8_t>(z));
+    uint32_t index = entry.index;
 
-    uint8_t queued = chunk.light_queue_level[idx];
+    uint8_t queued = chunk.light_queue_level[index];
     if (level < queued) return; // есть запись с более высоким приоритетом
 
-    uint8_t current = chunk.light_data[idx];
+    uint8_t current = chunk.light_data[index];
     if (queued == level) {
-        chunk.light_queue_level[idx] = 0;
-        chunk.mark_light_dirty(idx, false);
+        chunk.light_queue_level[index] = 0;
+        chunk.mark_light_dirty(index, false);
     } else {
         // Записи в очереди уже нет: если свет не ниже её уровня, работа сделана.
-        chunk.mark_light_dirty(idx, false);
+        chunk.mark_light_dirty(index, false);
         if (current >= level) return;
     }
 
-    if (fast) fill_full_opacity_fast(chunk, x, y, z);
-    else fill_full_opacity_slow(chunk, x, y, z);
+    if (fast) {
+        int y = index_y(index);
+        fill_full_opacity_fast(chunk, index, y);
 
-    int center_opacity = full_opacity[CENTER];
-    int new_light = 0;
+        int center_opacity = full_opacity[CENTER];
+        int new_light = emission(chunk, index);
 
-    uint16_t block_id = chunk.get_block_id(
-        static_cast<uint8_t>(x), static_cast<uint16_t>(y), static_cast<uint8_t>(z));
-    auto block = world.get_block_mgr().get_block(block_id);
-    if (block) new_light = block->light;
-
-    for (int i = 0; i < 27; ++i) {
-        if (i == CENTER) continue;
-        int dx, dy, dz;
-        index_offset(i, dx, dy, dz);
-
-        Chunk* nchunk = nullptr;
-        Vec3i nlocal;
-        if (!locate_neighbor(chunk, x + dx, y + dy, z + dz, nchunk, nlocal)) {
-            continue;
+        const uint8_t* light_data = chunk.light_data.data();
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER) continue;
+            const Offset& o = OFFSETS[i];
+            int ny = y + o.dy;
+            if (ny < 0 || ny >= HEIGHT) continue;
+            int candidate = static_cast<int>(light_data[index + o.delta]) -
+                            o.dist - center_opacity;
+            if (candidate > new_light) new_light = candidate;
         }
 
-        uint32_t nidx = Chunk::coords_to_global_index(
-            static_cast<uint8_t>(nlocal.x), static_cast<uint16_t>(nlocal.y),
-            static_cast<uint8_t>(nlocal.z));
-        int candidate = static_cast<int>(nchunk->light_data[nidx]) -
-                        offset_distance(dx, dy, dz) - center_opacity;
-        if (candidate > new_light) new_light = candidate;
-    }
+        new_light = std::max(0, std::min(new_light, 255));
+        chunk.light_data[index] = static_cast<uint8_t>(new_light);
 
-    new_light = std::max(0, std::min(new_light, 255));
-    chunk.light_data[idx] = static_cast<uint8_t>(new_light);
+        uint8_t* light_mut = chunk.light_data.data();
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER) continue;
+            int target = new_light - full_opacity[i];
+            if (target <= 0) continue;
+            const Offset& o = OFFSETS[i];
+            int ny = y + o.dy;
+            if (ny < 0 || ny >= HEIGHT) continue;
 
-    for (int i = 0; i < 27; ++i) {
-        if (i == CENTER) continue;
-        int dx, dy, dz;
-        index_offset(i, dx, dy, dz);
+            uint32_t nindex = index + o.delta;
+            if (light_mut[nindex] < target) {
+                schedule_light(chunk, nindex,
+                               static_cast<uint8_t>(std::min(target, 255)));
+            }
+        }
+    } else {
+        std::array<Chunk*, 27> chunks;
+        std::array<uint32_t, 27> indices;
+        resolve_neighborhood(chunk, index_x(index), index_y(index), index_z(index),
+                             chunks, indices);
+        fill_full_opacity_slow(chunk, index, chunks, indices);
 
-        int target = new_light - static_cast<int>(full_opacity[i]);
-        if (target <= 0) continue;
+        int center_opacity = full_opacity[CENTER];
+        int new_light = emission(chunk, index);
 
-        Chunk* nchunk = nullptr;
-        Vec3i nlocal;
-        if (!locate_neighbor(chunk, x + dx, y + dy, z + dz, nchunk, nlocal)) {
-            continue;
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER || !chunks[i]) continue;
+            int candidate = static_cast<int>(chunks[i]->light_data[indices[i]]) -
+                            OFFSETS[i].dist - center_opacity;
+            if (candidate > new_light) new_light = candidate;
         }
 
-        uint32_t nidx = Chunk::coords_to_global_index(
-            static_cast<uint8_t>(nlocal.x), static_cast<uint16_t>(nlocal.y),
-            static_cast<uint8_t>(nlocal.z));
-        if (nchunk->light_data[nidx] < target) {
-            schedule_light(*nchunk, nlocal, static_cast<uint8_t>(std::min(target, 255)));
+        new_light = std::max(0, std::min(new_light, 255));
+        chunk.light_data[index] = static_cast<uint8_t>(new_light);
+
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER || !chunks[i]) continue;
+            int target = new_light - full_opacity[i];
+            if (target <= 0) continue;
+
+            Chunk& nchunk = *chunks[i];
+            uint32_t nindex = indices[i];
+            if (nchunk.light_data[nindex] < target) {
+                schedule_light(nchunk, nindex,
+                               static_cast<uint8_t>(std::min(target, 255)));
+            }
         }
     }
 }

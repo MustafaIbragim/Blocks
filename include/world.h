@@ -27,6 +27,12 @@ public:
     
     std::shared_ptr<Chunk> get_chunk(const Vec2i& chunk_pos);
     const Chunk* get_chunk(const Vec2i& chunk_pos) const;
+
+    // Не владеющий указатель без копирования shared_ptr — для горячих путей.
+    Chunk* get_chunk_ptr(const Vec2i& chunk_pos) {
+        auto it = chunks.find(chunk_pos);
+        return it != chunks.end() ? it->second.get() : nullptr;
+    }
     
     void set_chunk(const Vec2i& chunk_pos, std::shared_ptr<Chunk> chunk);
     

@@ -16,7 +16,102 @@ GLFW_KEY_SPACE = 32
 GLFW_KEY_LEFT_SHIFT = 340
 GLFW_KEY_ESCAPE = 256
 
+GLFW_KEY_Q = 81
+GLFW_KEY_E = 69
+
+def raycast_voxel(world, origin, direction, max_distance=8.0):
+    """Рейкаст по вокселям (алгоритм Amanatides & Woo).
+    Возвращает (hit_pos, hit_normal) или (None, None).
+    """
+    import vec_module as vm
+
+    x = int(math.floor(origin.x))
+    y = int(math.floor(origin.y))
+    z = int(math.floor(origin.z))
+    
+    step_x = 1 if direction.x > 0 else -1
+    step_y = 1 if direction.y > 0 else -1
+    step_z = 1 if direction.z > 0 else -1
+    
+    t_delta_x = abs(1.0 / direction.x) if direction.x != 0 else float('inf')
+    t_delta_y = abs(1.0 / direction.y) if direction.y != 0 else float('inf')
+    t_delta_z = abs(1.0 / direction.z) if direction.z != 0 else float('inf')
+    
+    t_max_x = ((x + 1 - origin.x) if step_x > 0 else (origin.x - x)) * t_delta_x if direction.x != 0 else float('inf')
+    t_max_y = ((y + 1 - origin.y) if step_y > 0 else (origin.y - y)) * t_delta_y if direction.y != 0 else float('inf')
+    t_max_z = ((z + 1 - origin.z) if step_z > 0 else (origin.z - z)) * t_delta_z if direction.z != 0 else float('inf')
+    
+    hit_pos = vm.Vec3i(x, y, z)
+    hit_normal = vm.Vec3i(0, 0, 0)
+    
+    dist = 0.0
+    while dist < max_distance:
+        block = world.get_block(hit_pos) 
+        if block is not None and getattr(block, 'id', 0) != 0:
+            return hit_pos, hit_normal
+        
+        if t_max_x < t_max_y:
+            if t_max_x < t_max_z:
+                x += step_x
+                dist = t_max_x
+                t_max_x += t_delta_x
+                hit_normal = vm.Vec3i(-step_x, 0, 0)
+            else:
+                z += step_z
+                dist = t_max_z
+                t_max_z += t_delta_z
+                hit_normal = vm.Vec3i(0, 0, -step_z)
+        else:
+            if t_max_y < t_max_z:
+                y += step_y
+                dist = t_max_y
+                t_max_y += t_delta_y
+                hit_normal = vm.Vec3i(0, -step_y, 0)
+            else:
+                z += step_z
+                dist = t_max_z
+                t_max_z += t_delta_z
+                hit_normal = vm.Vec3i(0, 0, -step_z)
+                
+        hit_pos = vm.Vec3i(x, y, z)
+        
+    return None, None
+
+def update_block_and_mesh(world, renderer, pos):
+    """Обновляет свет и пересобирает меши затронутых чанков."""
+    import vec_module as vm
+
+    # 1. Пересчитываем свет
+    world.update_lighting()
+    
+    # 2. Определяем, какие чанки нужно пересобрать
+    # cx = (pos.x - 16) // 32
+    # cz = (pos.z - 16)  // 32
+    
+    for y in range(2):
+        for x in range(2):
+            pos = vm.Vec2i(x, y)
+            world.rebuild_chunk_mesh(pos)
+            mesh = world.get_chunk_mesh(pos)
+            renderer.upload_mesh(pos.x * 2 + pos.y + 1, mesh)
+
+
 import numpy as np
+
+
+import renderer_module as rm
+
+def create_forward(camera: rm.ViewCam):
+    import vec_module as vm
+    yaw = camera.rotation.x
+    pitch = camera.rotation.y
+    cp = math.cos(pitch)
+    forward = vm.Vec3f(
+        math.cos(yaw) * cp,
+        math.sin(pitch),
+        math.sin(yaw) * cp
+    )
+    return forward
 
 
 def test_renderer():
@@ -280,6 +375,40 @@ def test_renderer():
         camera.rotation.x += mouse_dx * mouse_sensitivity
         camera.rotation.y += mouse_dy * mouse_sensitivity
         camera.rotation.y = max(-1.5, min(1.5, camera.rotation.y))
+
+        # Вычисляем 3D вектор направления взгляда для рейкаста
+        
+        # Q - сломать блок
+        if input_mgr.is_key_pressed(GLFW_KEY_Q):
+            forward = create_forward(camera)
+            hit_pos, hit_normal = raycast_voxel(world, camera.position, forward, max_distance=8.0)
+            if hit_pos is not None:
+                world.remove_block(hit_pos)
+                update_block_and_mesh(world, renderer, hit_pos)
+                print(f"\n  Блок удалён в ({hit_pos.x}, {hit_pos.y}, {hit_pos.z})")
+        
+        # E - поставить light_block
+        if input_mgr.is_key_pressed(GLFW_KEY_E):
+            print('GOGA')
+            forward = create_forward(camera)
+            hit_pos, hit_normal = raycast_voxel(world, camera.position, forward, max_distance=8.0)
+            if hit_pos is not None:
+                print('HASA')
+                # Вычисляем позицию для нового блока (соседняя клетка по нормали)
+                place_pos = vm.Vec3i(
+                    hit_pos.x + hit_normal.x, 
+                    hit_pos.y + hit_normal.y, 
+                    hit_pos.z + hit_normal.z
+                )
+                
+                # Защита от установки блока внутрь игрока
+                player_bx = int(math.floor(camera.position.x))
+                player_by = int(math.floor(camera.position.y))
+                player_bz = int(math.floor(camera.position.z))
+                if not (place_pos.x == player_bx and place_pos.y == player_by and place_pos.z == player_bz):
+                    world.set_block(place_pos, light_block)
+                    update_block_and_mesh(world, renderer, place_pos)
+                    print(f"\n  Блок поставлен в ({place_pos.x}, {place_pos.y}, {place_pos.z})")
         
         # Рендер
         renderer.render(tick, camera, 0.1)

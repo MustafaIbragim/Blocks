@@ -50,6 +50,11 @@ public:
     uint16_t register_block(std::shared_ptr<Block> block);
     
     std::shared_ptr<Block> get_block(uint16_t id) const;
+
+    // Эмиссия блока без создания shared_ptr — для горячих циклов освещения.
+    inline uint8_t get_light(uint16_t id) const {
+        return (id < blocks.size() && blocks[id]) ? blocks[id]->light : 0;
+    }
     
     inline bool has_block(uint16_t id) const {
         return id < blocks.size() && blocks[id] != nullptr;

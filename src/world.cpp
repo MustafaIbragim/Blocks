@@ -21,21 +21,25 @@ void World::set_chunk(const Vec2i& chunk_pos, std::shared_ptr<Chunk> chunk) {
     if (!chunk) return;
 
     auto existing = chunks.find(chunk_pos);
+    bool replaced = false;
     if (existing != chunks.end() && existing->second != chunk) {
         light_engine->forget_chunk(existing->second.get());
+        replaced = true;
     }
 
     chunk->chunk_xz = chunk_pos;
     chunks[chunk_pos] = chunk;
     link_horizontal_neighbors(chunk_pos);
     light_engine->mark_chunk_sources(*chunk);
-    light_engine->mark_chunk_border(*chunk);
+    light_engine->mark_chunk_border(*chunk, replaced);
 
     // Уже загруженные соседи должны пересчитать свет на общей границе.
+    // При замене чанка свет мог уменьшиться (в старом чанке были источники),
+    // при обычной загрузке — только увеличиться.
     for (ChunkNeighborDir dir : {ChunkNeighborDir::NegX, ChunkNeighborDir::PosX,
                                  ChunkNeighborDir::NegZ, ChunkNeighborDir::PosZ}) {
         Chunk* neighbor = chunk->get_neighbor(dir);
-        if (neighbor) light_engine->mark_chunk_border(*neighbor);
+        if (neighbor) light_engine->mark_chunk_border(*neighbor, replaced);
     }
 }
 
@@ -50,7 +54,7 @@ void World::remove_chunk(const Vec2i& chunk_pos) {
         for (ChunkNeighborDir dir : {ChunkNeighborDir::NegX, ChunkNeighborDir::PosX,
                                      ChunkNeighborDir::NegZ, ChunkNeighborDir::PosZ}) {
             Chunk* neighbor = removed->get_neighbor(dir);
-            if (neighbor) light_engine->mark_chunk_border(*neighbor);
+            if (neighbor) light_engine->mark_chunk_border(*neighbor, true);
         }
         light_engine->forget_chunk(removed);
     }
@@ -104,13 +108,24 @@ void World::set_block(const Vec3i& world_pos, std::shared_ptr<Block> block) {
     }
     
     Vec3i local_pos = world_to_local_coords(world_pos);
-    chunk->set_block(static_cast<uint8_t>(local_pos.x),
-                     static_cast<uint16_t>(local_pos.y),
-                     static_cast<uint8_t>(local_pos.z),
-                     block);
-    
-    // Ставим на обновление изменённый блок и 26 его соседей.
-    light_engine->mark_neighborhood(*chunk, local_pos);
+    uint8_t local_x = static_cast<uint8_t>(local_pos.x);
+    uint16_t local_y = static_cast<uint16_t>(local_pos.y);
+    uint8_t local_z = static_cast<uint8_t>(local_pos.z);
+    uint32_t global_index = Chunk::coords_to_global_index(local_x, local_y, local_z);
+
+    // Запоминаем оптические свойства до изменения, чтобы обновить только
+    // те клетки, где свет действительно может измениться.
+    uint16_t old_id = chunk->get_block_id(local_x, local_y, local_z);
+    uint8_t old_opacity = chunk->opacity_data[global_index];
+    uint8_t old_light = block_mgr.get_light(old_id);
+    uint8_t new_light = block ? block->light : 0;
+
+    chunk->set_block(local_x, local_y, local_z, block);
+    uint8_t new_opacity = chunk->opacity_data[global_index];
+
+    light_engine->mark_block_changed(*chunk, local_pos,
+                                     old_opacity, new_opacity,
+                                     old_light, new_light);
     
     mark_chunk_dirty(chunk_pos);
 }
