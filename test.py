@@ -79,6 +79,21 @@ def test_renderer():
     for i in range(6):
         dirt.set_face_texture(i, grass_tex_id if i == 3 else dirt_tex_id)
     
+    light_block_img = make_noise_texture((180, 218, 248),7, seed=34)
+    light_block_tex = tm.Texture([light_block_img], "dirt")
+    
+    light_block = bm.Block(1, "light_block")
+    light_block.id = block_mgr.register_block(light_block)
+    light_block.opacity = 255
+    light_block.status = 0x01
+    light_block.status = 0x01
+    light_block.light = 255
+    
+    light_block_tex_id = tex_blocks_mgr.register_texture(light_block_tex)
+    
+    for i in range(6):
+        light_block.set_face_texture(i, light_block_tex_id)
+    
     world = wm.World(block_mgr, tex_blocks_mgr, tex_mgr)
     chunk = cm.Chunk()
     world.set_chunk(vm.Vec2i(0, 0), chunk)
@@ -102,45 +117,49 @@ def test_renderer():
     world.set_block(vm.Vec3i(15, 17, 12), dirt)
     world.set_block(vm.Vec3i(15, 17, 13), dirt)
     
+    world.set_block(vm.Vec3i(25, 17, 25), light_block)
+    
     print("  Задаём градиент света...")
+
+    world.update_lighting()
     
     # Задаём свет для всех 4 чанков
-    for chunk_x in range(2):
-        for chunk_z in range(2):
-            chunk = world.get_chunk(vm.Vec2i(chunk_x, chunk_z))
-            light_np = chunk.light_np
+    # for chunk_x in range(2):
+    #     for chunk_z in range(2):
+    #         chunk = world.get_chunk(vm.Vec2i(chunk_x, chunk_z))
+    #         light_np = chunk.light_np
             
-            # Обнуляем весь чанк
-            light_np[:] = 0
+    #         # Обнуляем весь чанк
+    #         light_np[:] = 0
             
-            # Задаём свет для блоков платформы в этом чанке
-            for local_x in range(32):
-                for local_z in range(32):
-                    # Вычисляем мировые координаты
-                    world_x = chunk_x * 32 + local_x
-                    world_z = chunk_z * 32 + local_z
+    #         # Задаём свет для блоков платформы в этом чанке
+    #         for local_x in range(32):
+    #             for local_z in range(32):
+    #                 # Вычисляем мировые координаты
+    #                 world_x = chunk_x * 32 + local_x
+    #                 world_z = chunk_z * 32 + local_z
                     
-                    # Проверяем, что блок находится в пределах платформы (X: 10-49, Z: 10-49)
-                    if 10 <= world_x <= 49 and 10 <= world_z <= 49:
-                        # Центр платформы: блоки 13-32 по X и Z
-                        if 13 <= world_x <= 32 and 13 <= world_z <= 32:
-                            light_val = 255  # Максимальный свет
-                        else:
-                            light_val = 0    # Полный мрак
+    #                 # Проверяем, что блок находится в пределах платформы (X: 10-49, Z: 10-49)
+    #                 if 10 <= world_x <= 49 and 10 <= world_z <= 49:
+    #                     # Центр платформы: блоки 13-32 по X и Z
+    #                     if 13 <= world_x <= 32 and 13 <= world_z <= 32:
+    #                         light_val = 255  # Максимальный свет
+    #                     else:
+    #                         light_val = 0    # Полный мрак
                         
-                        # Используем ЛОКАЛЬНЫЕ координаты чанка
-                        idx = cm.Chunk.coords_to_global_index(local_x, 16, local_z)
-                        light_np[idx] = light_val
+    #                     # Используем ЛОКАЛЬНЫЕ координаты чанка
+    #                     idx = cm.Chunk.coords_to_global_index(local_x, 16, local_z)
+    #                     light_np[idx] = light_val
     
-    print(f"  Градиент задан для всех 4 чанков")
+    # print(f"  Градиент задан для всех 4 чанков")
     
-    # Отладка: проверяем значения
-    print("  Проверка light_data:")
-    for x in [10, 13, 15, 17, 19]:
-        for z in [10, 13, 15, 17, 19]:
-            idx = cm.Chunk.coords_to_global_index(x, 16, z)
-            light_val = light_np[idx]
-            print(f"    Блок ({x}, 15, {z}): light={light_val}")
+    # # Отладка: проверяем значения
+    # print("  Проверка light_data:")
+    # for x in [10, 13, 15, 17, 19]:
+    #     for z in [10, 13, 15, 17, 19]:
+    #         idx = cm.Chunk.coords_to_global_index(x, 16, z)
+    #         light_val = light_np[idx]
+    #         print(f"    Блок ({x}, 15, {z}): light={light_val}")
     
     # Пересобираем меш, чтобы мезер запёк новый свет в вершины!
     world.rebuild_chunk_mesh(vm.Vec2i(0, 0))

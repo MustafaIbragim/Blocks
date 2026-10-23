@@ -122,6 +122,7 @@ Chunk::Chunk(const Vec2i& xz) : chunk_xz(xz) {
     
     opacity_data.fill(0);
     light_data.fill(0);
+    light_queue_level.fill(0);
     light_dirty.fill(0);
     cube_flags.fill(0);
     

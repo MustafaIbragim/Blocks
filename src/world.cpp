@@ -4,7 +4,8 @@
 
 
 World::World(BlockManager& block_mgr, TextureBlocksManager& tex_blocks_mgr, TextureManager& tex_mgr)
-    : block_mgr(block_mgr), tex_blocks_mgr(tex_blocks_mgr), tex_mgr(tex_mgr) {}
+    : block_mgr(block_mgr), tex_blocks_mgr(tex_blocks_mgr), tex_mgr(tex_mgr),
+      light_engine(std::make_unique<LightEngine>(*this)) {}
 
 std::shared_ptr<Chunk> World::get_chunk(const Vec2i& chunk_pos) {
     auto it = chunks.find(chunk_pos);
@@ -18,9 +19,24 @@ const Chunk* World::get_chunk(const Vec2i& chunk_pos) const {
 
 void World::set_chunk(const Vec2i& chunk_pos, std::shared_ptr<Chunk> chunk) {
     if (!chunk) return;
+
+    auto existing = chunks.find(chunk_pos);
+    if (existing != chunks.end() && existing->second != chunk) {
+        light_engine->forget_chunk(existing->second.get());
+    }
+
     chunk->chunk_xz = chunk_pos;
     chunks[chunk_pos] = chunk;
     link_horizontal_neighbors(chunk_pos);
+    light_engine->mark_chunk_sources(*chunk);
+    light_engine->mark_chunk_border(*chunk);
+
+    // Уже загруженные соседи должны пересчитать свет на общей границе.
+    for (ChunkNeighborDir dir : {ChunkNeighborDir::NegX, ChunkNeighborDir::PosX,
+                                 ChunkNeighborDir::NegZ, ChunkNeighborDir::PosZ}) {
+        Chunk* neighbor = chunk->get_neighbor(dir);
+        if (neighbor) light_engine->mark_chunk_border(*neighbor);
+    }
 }
 
 bool World::has_chunk(const Vec2i& chunk_pos) const {
@@ -28,6 +44,16 @@ bool World::has_chunk(const Vec2i& chunk_pos) const {
 }
 
 void World::remove_chunk(const Vec2i& chunk_pos) {
+    auto it = chunks.find(chunk_pos);
+    if (it != chunks.end()) {
+        Chunk* removed = it->second.get();
+        for (ChunkNeighborDir dir : {ChunkNeighborDir::NegX, ChunkNeighborDir::PosX,
+                                     ChunkNeighborDir::NegZ, ChunkNeighborDir::PosZ}) {
+            Chunk* neighbor = removed->get_neighbor(dir);
+            if (neighbor) light_engine->mark_chunk_border(*neighbor);
+        }
+        light_engine->forget_chunk(removed);
+    }
     unlink_horizontal_neighbors(chunk_pos);
     chunks.erase(chunk_pos);
     chunk_meshes.erase(chunk_pos);
@@ -83,7 +109,14 @@ void World::set_block(const Vec3i& world_pos, std::shared_ptr<Block> block) {
                      static_cast<uint8_t>(local_pos.z),
                      block);
     
+    // Ставим на обновление изменённый блок и 26 его соседей.
+    light_engine->mark_neighborhood(*chunk, local_pos);
+    
     mark_chunk_dirty(chunk_pos);
+}
+
+void World::remove_block(const Vec3i& world_pos) {
+    set_block(world_pos, nullptr);
 }
 
 void World::rebuild_chunk_mesh(const Vec2i& chunk_pos) {

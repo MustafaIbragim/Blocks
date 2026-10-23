@@ -9,6 +9,7 @@
 #include "block.h"
 #include "texture.h"
 #include "mesh.h"
+#include "light_engine.h"
 
 
 struct Vec2iHash {
@@ -37,6 +38,11 @@ public:
     
     std::shared_ptr<Block> get_block(const Vec3i& world_pos) const;
     void set_block(const Vec3i& world_pos, std::shared_ptr<Block> block);
+    void remove_block(const Vec3i& world_pos);
+    
+    // Освещение
+    LightEngine& get_light_engine() const { return *light_engine; }
+    void update_lighting() { light_engine->update(); }
     
     void rebuild_chunk_mesh(const Vec2i& chunk_pos);
     std::shared_ptr<Mesh> get_chunk_mesh(const Vec2i& chunk_pos) const;
@@ -47,6 +53,7 @@ public:
     void tick_all(uint64_t tick);
     void slow_tick(uint64_t global_tick, uint32_t tick_counter);
     
+    BlockManager& get_block_mgr() const { return block_mgr; }
     TextureBlocksManager& get_tex_blocks_mgr() const { return tex_blocks_mgr; }
     TextureManager& get_tex_mgr() const { return tex_mgr; }
 
@@ -54,6 +61,8 @@ private:
     BlockManager& block_mgr;
     TextureBlocksManager& tex_blocks_mgr;
     TextureManager& tex_mgr;
+    
+    std::unique_ptr<LightEngine> light_engine;
     
     std::unordered_map<Vec2i, std::shared_ptr<Chunk>, Vec2iHash> chunks;
     std::unordered_map<Vec2i, std::shared_ptr<Mesh>, Vec2iHash> chunk_meshes;

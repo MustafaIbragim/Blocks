@@ -71,6 +71,9 @@ public:
     
     std::array<uint8_t, VOLUME>      opacity_data;
     std::array<uint8_t, VOLUME>      light_data;
+    // Уровень, на котором блок стоит в очереди освещения (0 = не в очереди).
+    // Нужен, чтобы при появлении более яркого пути не плодить дубликаты.
+    std::array<uint8_t, VOLUME>      light_queue_level;
     std::array<uint64_t, FLAG_WORDS> light_dirty;
     std::array<uint64_t, FLAG_WORDS> cube_flags;
     

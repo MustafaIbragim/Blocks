@@ -64,6 +64,7 @@ add_library(core SHARED
     src/block.cpp
     src/chunk.cpp
     src/chunk_mesher.cpp
+    src/light_engine.cpp
     src/world.cpp
     src/input.cpp
 )
