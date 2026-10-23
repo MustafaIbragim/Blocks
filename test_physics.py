@@ -50,6 +50,11 @@ def main():
     # работать согласованно.
     edge_id = physics.add_dynamic_sphere(
         0.5, 1.0, vm.Vec3f(31.5, 24.0, 16.0))
+    # Вертикальная капсула (как корпус Dummy) с заблокированным вращением.
+    capsule_id = physics.add_dynamic_capsule(
+        0.3, 1.2, 1.0, vm.Vec3f(10.0, 22.0, 16.0))
+    physics.set_body_angular_factor(capsule_id, vm.Vec3f(0.0, 0.0, 0.0))
+    assert physics.get_body_angular_factor(capsule_id) == vm.Vec3f(0.0, 0.0, 0.0)
 
     assert physics.get_num_collision_objects() >= 5
 
@@ -62,16 +67,26 @@ def main():
     sphere_pos = physics.get_body_position(sphere_id)
     box_pos = physics.get_body_position(box_id)
     edge_pos = physics.get_body_position(edge_id)
+    capsule_pos = physics.get_body_position(capsule_id)
+    capsule_rot = physics.get_body_rotation(capsule_id)
 
     print("sphere:", sphere_pos)
     print("box:   ", box_pos)
     print("edge:  ", edge_pos)
+    print("capsule:", capsule_pos)
     print("manifolds were generated:", saw_contacts)
 
     assert saw_contacts, "Bullet did not generate any contacts"
     for name, pos in (("sphere", sphere_pos), ("box", box_pos), ("edge", edge_pos)):
         assert 11.2 < pos.y < 11.9, f"{name} did not rest on the voxel floor: {pos}"
         assert abs(pos.x) < 1e6 and abs(pos.z) < 1e6
+
+    # Полная высота капсулы 1.8, значит центр покоится на 11 + 0.9 = 11.9.
+    assert 11.7 < capsule_pos.y < 11.95, (
+        f"capsule did not rest on the voxel floor: {capsule_pos}")
+    # Angular factor (0, 0, 0) не даёт капсуле наклоняться.
+    assert abs(capsule_rot.w - 1.0) < 1e-3, (
+        f"capsule body rotated unexpectedly: {capsule_rot}")
 
     # Проверяем flyweight: все блоки одного типа используют один shape.
     first = pm.get_block_collision(dirt)

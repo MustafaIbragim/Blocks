@@ -201,6 +201,15 @@ uint32_t PhysicsWorld::add_dynamic_sphere(float radius,
     return impl->add_body(std::move(shape), btScalar(mass), to_bt(position));
 }
 
+uint32_t PhysicsWorld::add_dynamic_capsule(float radius,
+                                           float cylinder_height,
+                                           float mass,
+                                           const Vec3f& position) {
+    auto shape = std::make_shared<btCapsuleShape>(
+        btScalar(radius), btScalar(cylinder_height));
+    return impl->add_body(std::move(shape), btScalar(mass), to_bt(position));
+}
+
 void PhysicsWorld::remove_body(uint32_t body_id) {
     Impl::BodyEntry& entry = impl->get_body(body_id);
     impl->dynamics_world.removeRigidBody(entry.body);
@@ -258,6 +267,17 @@ void PhysicsWorld::set_body_gravity(uint32_t body_id, const Vec3f& gravity) {
     Impl::BodyEntry& entry = impl->get_body(body_id);
     entry.body->setGravity(to_bt(gravity));
     entry.body->activate(true);
+}
+
+void PhysicsWorld::set_body_angular_factor(uint32_t body_id, const Vec3f& factor) {
+    Impl::BodyEntry& entry = impl->get_body(body_id);
+    entry.body->setAngularFactor(to_bt(factor));
+    entry.body->activate(true);
+}
+
+Vec3f PhysicsWorld::get_body_angular_factor(uint32_t body_id) const {
+    const Impl::BodyEntry& entry = impl->get_body(body_id);
+    return to_vec(entry.body->getAngularFactor());
 }
 
 void PhysicsWorld::set_body_collisions_enabled(uint32_t body_id, bool enabled) {

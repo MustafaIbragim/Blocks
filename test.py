@@ -152,26 +152,33 @@ def test_renderer():
     input_mgr.set_cursor_visible(False)
 
     dummy = dm.Dummy(
-        vm.Vec3f(15.0, 18.0, 25.0),
-        vm.Vec3r(0.0, -0.5, 0.0, False),
+        vm.Vec3f(15.0, 16.9, 25.0),
+        vm.Vec3r(0.0, -0.2, 0.0, False),
     )
     dummy.view.fov = 70.0
 
     # Camera хранит ViewCam и ссылку на Renderer; сам ViewCam принадлежит Dummy.
     camera = cam.Camera(renderer, dummy.view)
 
-    directions = rc.ViewDirections(dummy.transform.rotation)
+    directions = rc.ViewDirections(dummy.view.rotation)
 
     # ------------------------------------------------------------------
-    # Физика: тело Dummy. F6 включает/выключает коллизии и гравитацию.
+    # Физика: вертикальная капсула Dummy. F6 включает/выключает коллизии
+    # и гравитацию.
     # ------------------------------------------------------------------
     physics = pm.PhysicsWorld()
     for cx in range(2):
         for cz in range(2):
             physics.add_chunk(world, vm.Vec2i(cx, cz))
 
-    player_body = physics.add_dynamic_box(
-        vm.Vec3f(0.3, 0.8, 0.3), 70.0, dummy.transform.position)
+    player_body = physics.add_dynamic_capsule(
+        dm.Dummy.BODY_RADIUS,
+        dm.Dummy.CAPSULE_HEIGHT,
+        70.0,
+        dummy.transform.position,
+    )
+    # Корпус манекена не должен заваливаться: вращаем его только сами, по Y.
+    physics.set_body_angular_factor(player_body, vm.Vec3f(0.0, 0.0, 0.0))
 
     physics_on = False
     dummy.collisions_enabled = False
@@ -185,7 +192,8 @@ def test_renderer():
     selected_is_light = False
 
     print("\nУправление:")
-    print("  WASD / Space / Shift / мышь — движение и обзор")
+    print("  WASD / Space / Shift — движение")
+    print("  мышь X — поворот корпуса по Y, мышь Y — обзор (pitch)")
     print("  ЛКМ — сломать блок, ПКМ — поставить блок")
     print("  U — сменить устанавливаемый блок (dirt / light_block)")
     print("  F6 — включить/выключить коллизии и гравитацию")
@@ -216,14 +224,13 @@ def test_renderer():
         if input_mgr.is_key_pressed(GLFW_KEY_ESCAPE):
             break
 
-        # --- Поворот Dummy ---
+        # --- Поворот: yaw корпуса отдельно от pitch взгляда ---
         mouse_dx, mouse_dy = input_mgr.get_mouse_delta()
-        dummy.transform.rotation.x += mouse_dx * mouse_sensitivity
-        dummy.transform.rotation.y += mouse_dy * mouse_sensitivity
-        dummy.transform.rotation.y = max(-1.5, min(1.5, dummy.transform.rotation.y))
+        dummy.rotate_yaw(mouse_dx * mouse_sensitivity)
+        dummy.rotate_pitch(mouse_dy * mouse_sensitivity)
         dummy.sync_view_from_transform()
 
-        directions.set_rotation(dummy.transform.rotation)
+        directions.set_rotation(dummy.view.rotation)
 
         # --- Движение в горизонтальной плоскости ---
         move = vm.Vec3f(0.0, 0.0, 0.0)
@@ -246,14 +253,14 @@ def test_renderer():
             vertical += 1.0
         if input_mgr.is_key_pressed(GLFW_KEY_LEFT_SHIFT):
             vertical -= 1.0
-
+        
         if physics_on:
             velocity = physics.get_body_linear_velocity(player_body)
             vertical_velocity = velocity.y
             if vertical > 0.0:
-                vertical_velocity = 6.0
+                vertical_velocity = 9.5
             elif vertical < 0.0:
-                vertical_velocity = -6.0
+                vertical_velocity = -9.5
 
             physics.set_body_linear_velocity(player_body, vm.Vec3f(
                 move.x * move_speed,
@@ -261,7 +268,7 @@ def test_renderer():
                 move.z * move_speed,
             ))
             physics.step(dt, 1, 1.0 / 60.0)
-
+            
             dummy.transform.position = physics.get_body_position(player_body)
         else:
             dummy.transform.position.x += move.x * move_speed * dt
@@ -304,9 +311,9 @@ def test_renderer():
                     )
 
                     player_block = vm.Vec3i(
-                        int(math.floor(dummy.view.position.x)),
-                        int(math.floor(dummy.view.position.y)),
-                        int(math.floor(dummy.view.position.z)),
+                        int(math.floor(dummy.transform.position.x)),
+                        int(math.floor(dummy.transform.position.y)),
+                        int(math.floor(dummy.transform.position.z)),
                     )
                     if place_pos != player_block:
                         world.set_block(place_pos, selected_block)
@@ -329,7 +336,7 @@ def test_renderer():
             physics.set_body_collisions_enabled(player_body, physics_on)
             physics.set_body_gravity(
                 player_body,
-                vm.Vec3f(0.0, -9.81, 0.0) if physics_on
+                vm.Vec3f(0.0, -28.0, 0.0) if physics_on
                 else vm.Vec3f(0.0, 0.0, 0.0),
             )
             if physics_on:

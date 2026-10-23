@@ -33,6 +33,12 @@ public:
     uint32_t add_dynamic_sphere(float radius,
                                 float mass,
                                 const Vec3f& position);
+    // cylinder_height — высота цилиндрической части, полная высота капсулы
+    // равна cylinder_height + 2 * radius.
+    uint32_t add_dynamic_capsule(float radius,
+                                 float cylinder_height,
+                                 float mass,
+                                 const Vec3f& position);
     void remove_body(uint32_t body_id);
     bool has_body(uint32_t body_id) const;
 
@@ -43,6 +49,11 @@ public:
     void set_body_position(uint32_t body_id, const Vec3f& position);
     void set_body_linear_velocity(uint32_t body_id, const Vec3f& velocity);
     void set_body_gravity(uint32_t body_id, const Vec3f& gravity);
+
+    // Множители угловой свободы тела. (0, 0, 0) полностью фиксирует
+    // ориентацию — это нужно вертикальным персонажам-капсулам.
+    void set_body_angular_factor(uint32_t body_id, const Vec3f& factor);
+    Vec3f get_body_angular_factor(uint32_t body_id) const;
 
     // Разрешает/запрещает контактный отклик тела с остальным миром.
     void set_body_collisions_enabled(uint32_t body_id, bool enabled);

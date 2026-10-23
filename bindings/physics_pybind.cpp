@@ -75,6 +75,9 @@ PYBIND11_MODULE(physics_module, m) {
              py::arg("half_extents"), py::arg("mass"), py::arg("position"))
         .def("add_dynamic_sphere", &PhysicsWorld::add_dynamic_sphere,
              py::arg("radius"), py::arg("mass"), py::arg("position"))
+        .def("add_dynamic_capsule", &PhysicsWorld::add_dynamic_capsule,
+             py::arg("radius"), py::arg("cylinder_height"),
+             py::arg("mass"), py::arg("position"))
         .def("remove_body", &PhysicsWorld::remove_body, py::arg("body_id"))
         .def("has_body", &PhysicsWorld::has_body, py::arg("body_id"))
         .def("get_body_position", &PhysicsWorld::get_body_position, py::arg("body_id"))
@@ -89,6 +92,10 @@ PYBIND11_MODULE(physics_module, m) {
              py::arg("body_id"), py::arg("velocity"))
         .def("set_body_gravity", &PhysicsWorld::set_body_gravity,
              py::arg("body_id"), py::arg("gravity"))
+        .def("set_body_angular_factor", &PhysicsWorld::set_body_angular_factor,
+             py::arg("body_id"), py::arg("factor"))
+        .def("get_body_angular_factor", &PhysicsWorld::get_body_angular_factor,
+             py::arg("body_id"))
         .def("set_body_collisions_enabled", &PhysicsWorld::set_body_collisions_enabled,
              py::arg("body_id"), py::arg("enabled"))
         .def("get_body_collisions_enabled", &PhysicsWorld::get_body_collisions_enabled,
