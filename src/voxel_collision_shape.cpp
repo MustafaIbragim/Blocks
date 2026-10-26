@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
+#include <unordered_map>
 #include <vector>
 
 #include <BulletCollision/CollisionShapes/btBoxShape.h>
@@ -36,6 +38,11 @@ inline int floor_div(int value, int divisor) {
         --q;
     }
     return q;
+}
+
+inline int64_t chunk_key(int x, int z) {
+    return (static_cast<int64_t>(static_cast<uint32_t>(x)) << 32) |
+           static_cast<uint32_t>(z);
 }
 
 inline bool aabb_overlap(const btVector3& min_a, const btVector3& max_a,
@@ -229,14 +236,16 @@ void VoxelCollisionShape::processAllTriangles(btTriangleCallback* callback,
     int chunk_z0 = floor_div(z0, chunk_size);
     int chunk_z1 = floor_div(z1, chunk_size);
 
+    std::unordered_map<int64_t, int> loaded_chunks;
+    for (const auto& pos : world->chunk_positions()) {
+        loaded_chunks.insert({chunk_key(pos.x, pos.y), 1});
+    }
+
+    const Block& barrier = *world->get_block_mgr().get_barrier_block();
+    const bool has_barrier = barrier.has_collision();
+
     for (int chunk_z = chunk_z0; chunk_z <= chunk_z1; ++chunk_z) {
         for (int chunk_x = chunk_x0; chunk_x <= chunk_x1; ++chunk_x) {
-            Chunk* chunk = world->get_chunk_ptr(Vec2i(chunk_x, chunk_z));
-            if (!chunk) {
-                // Чанк не загружен — в этой области коллизий нет.
-                continue;
-            }
-
             int base_x = chunk_x * chunk_size;
             int base_z = chunk_z * chunk_size;
 
@@ -244,6 +253,34 @@ void VoxelCollisionShape::processAllTriangles(btTriangleCallback* callback,
             int local_x1 = std::min(x1 - base_x, chunk_size - 1);
             int local_z0 = std::max(z0 - base_z, 0);
             int local_z1 = std::min(z1 - base_z, chunk_size - 1);
+
+            const bool chunk_loaded =
+                loaded_chunks.count(chunk_key(chunk_x, chunk_z)) != 0;
+            const Chunk* chunk = chunk_loaded
+                ? world->get_chunk_ptr(Vec2i(chunk_x, chunk_z))
+                : nullptr;
+
+            // Незагруженный чанк — сплошная стена барьеров по всей его
+            // высоте: физика должна останавливать сущности на краю
+            // загруженной части мира (см. World::get_block).
+            if (!chunk_loaded) {
+                if (!has_barrier) {
+                    continue;
+                }
+                for (int y = y0; y <= y1; ++y) {
+                    for (int local_z = local_z0; local_z <= local_z1; ++local_z) {
+                        for (int local_x = local_x0; local_x <= local_x1; ++local_x) {
+                            Vec3i world_pos(base_x + local_x, y, base_z + local_z);
+                            int triangle_index = 0;
+                            emitBlockTriangles(barrier, world_pos, callback,
+                                               query_min, query_max,
+                                               aabbMin, aabbMax,
+                                               triangle_index);
+                        }
+                    }
+                }
+                continue;
+            }
 
             for (int y = y0; y <= y1; ++y) {
                 for (int local_z = local_z0; local_z <= local_z1; ++local_z) {
@@ -253,12 +290,18 @@ void VoxelCollisionShape::processAllTriangles(btTriangleCallback* callback,
                             static_cast<uint16_t>(y),
                             static_cast<uint8_t>(local_z));
 
+                        std::shared_ptr<Block> block;
                         if (block_id == 0) {
-                            continue;
+                            // Воздух внутри загруженного чанка может быть
+                            // «виртуальным барьером» (например, над
+                            // столбцом воздуха у границы мира) — сверяемся
+                            // с World::get_block, чтобы логика и физика
+                            // видели одинаковые блоки.
+                            block = world->get_block(Vec3i(base_x + local_x, y,
+                                                           base_z + local_z));
+                        } else {
+                            block = world->get_block_mgr().get_block(block_id);
                         }
-
-                        std::shared_ptr<Block> block =
-                            world->get_block_mgr().get_block(block_id);
                         if (!block || !block->has_collision()) {
                             continue;
                         }
