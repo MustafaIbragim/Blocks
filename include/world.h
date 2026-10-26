@@ -4,6 +4,7 @@
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 #include <memory>
 #include "vec.h"
 #include "chunk.h"
@@ -33,6 +34,24 @@ public:
     Chunk* get_chunk_ptr(const Vec2i& chunk_pos) {
         auto it = chunks.find(chunk_pos);
         return it != chunks.end() ? it->second.get() : nullptr;
+    }
+
+    const Chunk* get_chunk_ptr(const Vec2i& chunk_pos) const {
+        auto it = chunks.find(chunk_pos);
+        return it != chunks.end() ? it->second.get() : nullptr;
+    }
+
+    // Список позиций загруженных чанков (для физики: незагруженные чанки
+    // считаются барьерами и должны создавать коллизии).
+    std::vector<Vec2i> chunk_positions() const {
+        std::vector<Vec2i> result;
+        result.reserve(chunks.size());
+        for (const auto& entry : chunks) {
+            if (entry.second) {
+                result.push_back(entry.first);
+            }
+        }
+        return result;
     }
     
     void set_chunk(const Vec2i& chunk_pos, std::shared_ptr<Chunk> chunk);
