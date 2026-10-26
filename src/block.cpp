@@ -45,6 +45,18 @@ BlockManager::BlockManager() {
     air->opacity = 0;
     air->clear_collision_shape();
     blocks.push_back(air);
+
+    // Барьер: полностью прозрачный блок без меша, но с коллизией куба.
+    // Не регистрируется в общем списке (id остаётся 0) — используется
+    // только как замена воздуха для незагруженных чанков.
+    barrier_block = std::make_shared<Block>(0, "barrier");
+    barrier_block->opacity = 0;   // прозрачность: не рендерится и не глушит свет
+    barrier_block->light = 0;
+    for (int i = 0; i < 6; ++i) {
+        barrier_block->face_textures[i] = 0;
+    }
+    barrier_block->inner = nullptr;             // никакого меша
+    barrier_block->collision = default_collision_shape;  // полноценный куб
 }
 
 uint16_t BlockManager::register_block(std::shared_ptr<Block> block) {
