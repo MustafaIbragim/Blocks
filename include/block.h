@@ -73,6 +73,14 @@ public:
     
     std::shared_ptr<Block> get_block(uint16_t id) const;
 
+    // Барьерный блок: полностью прозрачный (не рендерится и не блокирует
+    // свет) без меша, но с коллизией полноценного блока. Используется для
+    // незагруженных чанков, чтобы рейкаст и физика не «вылетали» за пределы
+    // загруженной части мира.
+    std::shared_ptr<Block> get_barrier_block() const {
+        return barrier_block;
+    }
+
     // Общая форма-куб для блоков, у которых не задана собственная collision shape.
     std::shared_ptr<btCollisionShape> get_default_collision_shape() const {
         return default_collision_shape;
@@ -96,6 +104,7 @@ public:
 private:
     std::vector<std::shared_ptr<Block>> blocks;
     std::shared_ptr<btCollisionShape> default_collision_shape;
+    std::shared_ptr<Block> barrier_block;
 };
 
 
