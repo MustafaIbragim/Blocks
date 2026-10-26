@@ -89,8 +89,10 @@ std::shared_ptr<Block> World::get_block(const Vec3i& world_pos) const {
     Vec2i chunk_pos = world_to_chunk_coords(world_pos);
     const Chunk* chunk = get_chunk(chunk_pos);
     
+    // Незагруженный чанк — барьер, а не воздух: рейкаст и логика движения
+    // не должны «вылетать» за пределы загруженной части мира.
     if (!chunk) {
-        return block_mgr.get_block(0);
+        return block_mgr.get_barrier_block();
     }
     
     Vec3i local_pos = world_to_local_coords(world_pos);
@@ -108,8 +110,11 @@ void World::set_block(const Vec3i& world_pos, std::shared_ptr<Block> block) {
     Vec2i chunk_pos = world_to_chunk_coords(world_pos);
     std::shared_ptr<Chunk> chunk = get_chunk(chunk_pos);
     
+    // Незагруженные чанки — барьеры: молча игнорируем установку блока
+    // вместо выброса исключения (вылет на границах мира при попытке
+    // поставить блок за пределами загруженной части).
     if (!chunk) {
-        throw std::runtime_error("Chunk not loaded at position");
+        return;
     }
     
     Vec3i local_pos = world_to_local_coords(world_pos);
