@@ -103,8 +103,8 @@ inline btVector3 safe_scale(const btVector3& scale) {
 
 VoxelCollisionShape::VoxelCollisionShape(World& world_ref, const Vec2i& chunk_pos)
     : world(&world_ref),
-      local_min(btScalar(0), btScalar(0), btScalar(0)),
-      local_max(btScalar(Chunk::SIZE_XZ), btScalar(Chunk::HEIGHT), btScalar(Chunk::SIZE_XZ)),
+      local_min(btScalar(-1), btScalar(0), btScalar(-1)),
+      local_max(btScalar(Chunk::SIZE_XZ+1), btScalar(Chunk::HEIGHT), btScalar(Chunk::SIZE_XZ+1)),
       world_origin(btScalar(chunk_pos.x * static_cast<int32_t>(Chunk::SIZE_XZ)),
                    btScalar(0),
                    btScalar(chunk_pos.y * static_cast<int32_t>(Chunk::SIZE_XZ))),

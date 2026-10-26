@@ -214,7 +214,7 @@ set_target_properties(dummy_module PROPERTIES
 # ============================================================================
 add_library(renderer SHARED
     src/renderer.cpp
-    src/_camera.cpp
+    src/camera.cpp
 )
 target_include_directories(renderer PUBLIC include glad/include)
 target_link_libraries(renderer PUBLIC core glad glfw)
@@ -231,7 +231,7 @@ set_target_properties(renderer_module PROPERTIES
     BUILD_WITH_INSTALL_RPATH TRUE
 )
 
-pybind11_add_module(camera_module bindings/_camera_pybind.cpp)
+pybind11_add_module(camera_module bindings/camera_pybind.cpp)
 target_link_libraries(camera_module PRIVATE renderer)
 set_target_properties(camera_module PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}

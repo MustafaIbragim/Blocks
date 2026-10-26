@@ -113,15 +113,25 @@ def test_renderer():
     for x in range(40):
         for z in range(40):
             world.set_block(vm.Vec3i(x + 10, 15, z + 10), dirt)
+    
+    for x in range(6):
+        for z in range(10):
+            world.set_block(vm.Vec3i(x + 27, 15, z), dirt)
 
+    ###
+    for x in range(64):
+        for z in range(64):
+            world.set_block(vm.Vec3i(x, 15, z), dirt)
+    ###
+    
     # Небольшие стенки для проверки теней/границ чанков.
     world.set_block(vm.Vec3i(15, 17, 15), dirt)
     world.set_block(vm.Vec3i(12, 17, 15), dirt)
     world.set_block(vm.Vec3i(13, 17, 15), dirt)
     world.set_block(vm.Vec3i(15, 17, 12), dirt)
     world.set_block(vm.Vec3i(15, 17, 13), dirt)
-    world.set_block(vm.Vec3i(25, 17, 25), light_block)
-
+    # world.set_block(vm.Vec3i(25, 17, 25), light_block)
+    
     # ------------------------------------------------------------------
     # Рендерер
     # ------------------------------------------------------------------

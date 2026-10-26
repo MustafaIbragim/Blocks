@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "_camera.h"
+#include "camera.h"
 #include "renderer.h"
 #include "view_cam.h"
 
