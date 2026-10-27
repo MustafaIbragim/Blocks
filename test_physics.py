@@ -18,6 +18,7 @@ import item_module as items
 import collision_module as pm
 import dummy_module as dm
 import mesh_lighting_module as ml
+import chunk_mesher_module as cmm
 
 
 EPS = 1e-3
@@ -344,6 +345,110 @@ def test_mesh_lighting():
 
 
 # ---------------------------------------------------------------------------
+# 5d. Освещение вершин меша чанка на стыках соседних чанков
+# ---------------------------------------------------------------------------
+def test_chunk_border_lighting():
+    block_mgr = bm.BlockManager()
+    tex_blocks_mgr = tm.TextureBlocksManager()
+    tex_mgr = tm.TextureManager()
+    world = wm.World(block_mgr, tex_blocks_mgr, tex_mgr)
+
+    for cx in range(2):
+        for cz in range(2):
+            world.set_chunk(vm.Vec2i(cx, cz), cm.Chunk(vm.Vec2i(cx, cz)))
+
+    dirt = bm.Block(0, "dirt")
+    dirt.opacity = 255
+    dirt.status = 1
+    dirt_id = block_mgr.register_block(dirt)
+    dirt = block_mgr.get_block(dirt_id)
+
+    # Блок у +X границы чанка (0,0) и блок в его углу. Их грани смотрят в
+    # соседние чанки, а вершины должны читать свет из этих чанков.
+    world.set_block(vm.Vec3i(31, 10, 16), dirt)
+    world.set_block(vm.Vec3i(31, 10, 31), dirt)
+
+    chunk = world.get_chunk(vm.Vec2i(0, 0))
+    right = world.get_chunk(vm.Vec2i(1, 0))
+    diagonal = world.get_chunk(vm.Vec2i(1, 1))
+
+    # По одному источнику в соседнем и в диагональном чанке. Вершина на
+    # границе усредняет 8 клеток, поэтому одна ненулевая даёт 200 / 8 = 25.
+    right.set_light(0, 10, 16, 200)
+    diagonal.set_light(0, 10, 0, 200)
+
+    mesh = cmm.ChunkMesher.build_mesh(chunk, block_mgr, tex_blocks_mgr)
+    vertices = np.asarray(mesh.vertices_np)
+
+    def vertex_lights_at(x, y, z):
+        matches = np.all(np.isclose(vertices[:, :3], (x, y, z), atol=EPS),
+                         axis=1)
+        indices = np.where(matches)[0]
+        assert len(indices) > 0, f"нет вершины ({x}, {y}, {z})"
+        return [mesh.vertex_light(int(i)) for i in indices]
+
+    adjacent_lights = vertex_lights_at(32, 10, 16)
+    assert adjacent_lights and all(light == 25 for light in adjacent_lights), \
+        f"свет соседнего чанка не учтён: {adjacent_lights}"
+
+    diagonal_lights = vertex_lights_at(32, 10, 32)
+    assert diagonal_lights and all(light == 25 for light in diagonal_lights), \
+        f"свет диагонального чанка не учтён: {diagonal_lights}"
+
+    print("  Chunk border lighting: соседний и диагональный чанки OK")
+
+
+def test_chunk_light_dirty_propagation():
+    block_mgr = bm.BlockManager()
+    tex_blocks_mgr = tm.TextureBlocksManager()
+    tex_mgr = tm.TextureManager()
+    world = wm.World(block_mgr, tex_blocks_mgr, tex_mgr)
+
+    for cx in range(2):
+        for cz in range(2):
+            world.set_chunk(vm.Vec2i(cx, cz), cm.Chunk(vm.Vec2i(cx, cz)))
+
+    dirt = bm.Block(0, "dirt")
+    dirt.opacity = 255
+    dirt.status = 1
+    dirt_id = block_mgr.register_block(dirt)
+    dirt = block_mgr.get_block(dirt_id)
+    world.set_block(vm.Vec3i(31, 10, 16), dirt)
+    world.set_block(vm.Vec3i(31, 10, 31), dirt)
+
+    # Сбрасываем начальные dirty-флаги, чтобы дальше проверять только
+    # реакцию на изменение света.
+    world.rebuild_dirty_meshes()
+    assert not world.is_chunk_dirty(vm.Vec2i(0, 0))
+    assert not world.is_chunk_dirty(vm.Vec2i(1, 0))
+
+    torch = bm.Block(1, "torch")
+    torch.opacity = 0
+    torch.status = 0
+    torch.light = 20
+    torch_id = block_mgr.register_block(torch)
+    torch = block_mgr.get_block(torch_id)
+
+    # Источник далеко от границы с (0,0): сам соседний чанк не меняет свет,
+    # но его меш обязан пересобраться, потому что читает границу (1,0).
+    world.set_block(vm.Vec3i(63, 10, 18), torch)
+    world.update_lighting()
+
+    assert world.is_chunk_dirty(vm.Vec2i(1, 0))
+    assert world.is_chunk_dirty(vm.Vec2i(0, 0)), \
+        "изменение света не пометило соседний чанк dirty"
+    assert world.is_chunk_dirty(vm.Vec2i(0, 1)), \
+        "изменение света не пометило диагональный чанк dirty"
+
+    world.rebuild_dirty_meshes()
+    assert not world.is_chunk_dirty(vm.Vec2i(0, 0))
+    assert not world.is_chunk_dirty(vm.Vec2i(1, 0))
+    assert not world.is_chunk_dirty(vm.Vec2i(0, 1))
+
+    print("  Chunk lighting: соседние меши помечаются dirty OK")
+
+
+# ---------------------------------------------------------------------------
 # 6. Поведенческое разделение: Entity vs Fragment
 # ---------------------------------------------------------------------------
 def test_entity_fragment_split():
@@ -532,6 +637,8 @@ def main():
     test_no_upward_push_on_wall_touch()
     test_wall_sliding()
     test_mesh_lighting()
+    test_chunk_border_lighting()
+    test_chunk_light_dirty_propagation()
     test_entity_fragment_split()
     test_trigger()
     test_interpolation()

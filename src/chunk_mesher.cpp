@@ -55,34 +55,78 @@ bool ChunkMesher::is_neighbor_cube(
     return false;
 }
 
+namespace {
+
+// Читает свет клетки по локальным координатам чанка. Если клетка выходит
+// за горизонтальную границу, переходит в соседний чанк (в том числе по
+// диагонали). Возвращает false, если сосед не загружен: такие пробы
+// исключаются из среднего, как и раньше на краю мира.
+bool read_light_sample(const Chunk& chunk,
+                       int32_t x, int32_t y, int32_t z,
+                       uint8_t& light) {
+    if (y < 0 || y >= static_cast<int32_t>(Chunk::HEIGHT)) {
+        return false;
+    }
+
+    const Chunk* source = &chunk;
+    int32_t local_x = x;
+    int32_t local_z = z;
+
+    if (local_x < 0) {
+        source = source->get_neighbor(ChunkNeighborDir::NegX);
+        local_x += static_cast<int32_t>(Chunk::SIZE_XZ);
+    } else if (local_x >= static_cast<int32_t>(Chunk::SIZE_XZ)) {
+        source = source->get_neighbor(ChunkNeighborDir::PosX);
+        local_x -= static_cast<int32_t>(Chunk::SIZE_XZ);
+    }
+
+    if (!source) {
+        return false;
+    }
+
+    if (local_z < 0) {
+        source = source->get_neighbor(ChunkNeighborDir::NegZ);
+        local_z += static_cast<int32_t>(Chunk::SIZE_XZ);
+    } else if (local_z >= static_cast<int32_t>(Chunk::SIZE_XZ)) {
+        source = source->get_neighbor(ChunkNeighborDir::PosZ);
+        local_z -= static_cast<int32_t>(Chunk::SIZE_XZ);
+    }
+
+    if (!source ||
+        local_x < 0 || local_x >= static_cast<int32_t>(Chunk::SIZE_XZ) ||
+        local_z < 0 || local_z >= static_cast<int32_t>(Chunk::SIZE_XZ)) {
+        return false;
+    }
+
+    const uint32_t index = Chunk::coords_to_global_index(
+        static_cast<uint8_t>(local_x),
+        static_cast<uint16_t>(y),
+        static_cast<uint8_t>(local_z));
+    light = source->light_data[index];
+    return true;
+}
+
+} // namespace
+
 uint8_t ChunkMesher::get_vertex_light(const Chunk& chunk, int32_t vx, int32_t vy, int32_t vz) {
-    uint8_t total = 0;
-    uint8_t light_data = 0;
+    uint32_t total = 0;
     int count = 0;
 
     int32_t offsets[8][3] = {
         { 0,  0,  0}, {-1,  0,  0}, { 0, -1,  0}, { 0,  0, -1},
         {-1, -1,  0}, {-1,  0, -1}, { 0, -1, -1}, {-1, -1, -1}
     };
-    
-    for (auto& off : offsets) {
-        int32_t x = vx + off[0];
-        int32_t y = vy + off[1];
-        int32_t z = vz + off[2];
 
-        if (y >= 0 && y < Chunk::HEIGHT && x >= 0 && x < Chunk::SIZE_XZ && z >= 0 && z < Chunk::SIZE_XZ) {
-            uint32_t idx = Chunk::coords_to_global_index(
-                static_cast<uint8_t>(x),
-                static_cast<uint16_t>(y),
-                static_cast<uint8_t>(z)
-            );
-            light_data = chunk.light_data[idx];
-            if (light_data > total) {total = light_data;}
+    for (auto& off : offsets) {
+        uint8_t light = 0;
+        if (read_light_sample(chunk, vx + off[0], vy + off[1], vz + off[2],
+                              light)) {
+            total += light;
             count++;
         }
     }
-    
-    return count > 0 ? total : 0;
+
+    return count > 0 ? static_cast<uint8_t>(total / count) : 0;
 }
 
 void ChunkMesher::add_face(

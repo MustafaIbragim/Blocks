@@ -410,6 +410,9 @@ void World::update_lighting() {
     for (Chunk* chunk : light_engine->consume_changed_chunks()) {
         if (chunk) {
             mark_chunk_dirty(chunk->chunk_xz);
+            // Вершины на границе соседнего чанка читают light_data этого
+            // чанка, поэтому его меш тоже нужно пересобрать.
+            mark_horizontal_neighbors_dirty(chunk->chunk_xz);
         }
     }
 }
@@ -474,11 +477,17 @@ void World::slow_tick(uint64_t global_tick, uint32_t tick_counter) {
 }
 
 void World::mark_horizontal_neighbors_dirty(const Vec2i& pos) {
-    const Vec2i directions[4] = {
+    // Вершины на углу чанка читают свет диагонального соседа, поэтому
+    // обходим все 8 окружающих чанков, а не только 4 по сторонам.
+    const Vec2i directions[8] = {
         {pos.x - 1, pos.y},
         {pos.x + 1, pos.y},
         {pos.x, pos.y - 1},
-        {pos.x, pos.y + 1}
+        {pos.x, pos.y + 1},
+        {pos.x - 1, pos.y - 1},
+        {pos.x + 1, pos.y - 1},
+        {pos.x - 1, pos.y + 1},
+        {pos.x + 1, pos.y + 1}
     };
     for (const Vec2i& neighbor : directions) {
         if (has_chunk(neighbor)) {
