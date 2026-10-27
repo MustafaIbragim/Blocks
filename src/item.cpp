@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "block.h"
+#include "mesh_lighting.h"
 #include "world.h"
 
 
@@ -338,4 +339,27 @@ ItemEntity::ItemEntity(const ItemStack& stack,
     collision_body.reset_history();
 
     render_position = position;
+    sync_render_mesh();
+}
+
+void ItemEntity::sync_render_mesh() {
+    const Mesh* source = nullptr;
+    if (stack.item && stack.item->mesh) {
+        source = stack.item->mesh.get();
+    }
+
+    if (source == render_mesh_source) {
+        return;
+    }
+
+    render_mesh_source = source;
+    render_mesh = source ? std::make_shared<Mesh>(*source) : nullptr;
+}
+
+void ItemEntity::refresh_mesh_lighting(const World& world) {
+    if (!render_mesh) {
+        return;
+    }
+    MeshLighting::update_mesh_lighting(
+        world, *render_mesh, render_position + mesh_offset);
 }

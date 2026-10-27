@@ -56,6 +56,7 @@ PYBIND11_MODULE(renderer_module, m) {
         .def("render", &Renderer::render, py::arg("current_tick"), py::arg("camera"), py::arg("min_light"))
         .def("render_meshes", &Renderer::render_meshes,
              py::arg("instances"), py::arg("camera"),
+             py::arg("min_light") = 0.1f,
              "Рисует 3D-меши с 2D-текстурой (например, выброшенные предметы)")
         .def("render_sprites", &Renderer::render_sprites,
              py::arg("sprites"), py::arg("camera"))

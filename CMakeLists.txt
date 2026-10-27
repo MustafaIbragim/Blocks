@@ -70,6 +70,7 @@ add_library(core SHARED
     src/chunk_mesher.cpp
     src/light_engine.cpp
     src/world.cpp
+    src/mesh_lighting.cpp
     src/raycast.cpp
     src/collision.cpp
     src/input.cpp
@@ -137,6 +138,14 @@ set_target_properties(texture_module PROPERTIES
 pybind11_add_module(mesh_module bindings/mesh_pybind.cpp)
 target_link_libraries(mesh_module PRIVATE core)
 set_target_properties(mesh_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(mesh_lighting_module bindings/mesh_lighting_pybind.cpp)
+target_link_libraries(mesh_lighting_module PRIVATE core)
+set_target_properties(mesh_lighting_module PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
     INSTALL_RPATH "$ORIGIN/../lib"
     BUILD_WITH_INSTALL_RPATH TRUE

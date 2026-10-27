@@ -17,6 +17,10 @@ public:
     std::vector<uint32_t> indices;
     std::vector<FaceData> faces;
 
+    // Увеличивается при пересчёте освещения вершин. Рендерер использует это
+    // как версию GPU-кэша, чтобы не заливать неизменившийся меш каждый кадр.
+    uint32_t light_revision = 0;
+
     // Простые перегрузки: UV по умолчанию (0..1), layer/anim = 0.
     uint32_t add_vertex(float x, float y, float z);
     uint32_t add_vertex(const Vec3f& pos, uint8_t block_light = 255, uint8_t sky_light = 0);

@@ -240,6 +240,8 @@ uint32_t World::spawn_item_entity(const ItemStack& stack,
 
     auto entity = std::make_shared<ItemEntity>(stack, position, velocity);
     entity->id = next_item_entity_id++;
+    entity->sync_render_mesh();
+    entity->refresh_mesh_lighting(*this);
     item_entities.push_back(entity);
     return entity->id;
 }
@@ -371,6 +373,8 @@ void World::update_items(float delta_time) {
         entity->velocity = body.velocity;
         entity->transform.position = body.position;
         entity->render_position = body.get_render_position(0.0f);
+        entity->sync_render_mesh();
+        entity->refresh_mesh_lighting(*this);
     }
 
     item_entities.erase(

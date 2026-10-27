@@ -175,6 +175,17 @@ public:
     // интерполируется, чтобы предмет не телепортировался между кадрами.
     Vec3f render_position;
 
+    // Копия Item::mesh на один выброшенный предмет: освещение зависит от
+    // позиции в мире, поэтому общий меш предмета использовать нельзя.
+    // Геометрия копируется из stack.item->mesh, когда предмет появляется.
+    std::shared_ptr<Mesh> render_mesh;
+    const Mesh* render_mesh_source = nullptr;
+
+    // Смещение центра меша относительно центра физического тела. Куб 0.8
+    // стоит на полу, а тело предмета имеет половину высоты 0.2, поэтому
+    // визуальный центр выше на 0.2.
+    Vec3f mesh_offset = Vec3f(0.0f, 0.2f, 0.0f);
+
     // Размер запасного спрайта в мировых единицах. Используется только
     // для предметов без Item::mesh; рендерер понимает его как половину
     // стороны camera-facing квада.
@@ -184,6 +195,12 @@ public:
     ItemEntity(const ItemStack& stack,
                const Vec3f& position = Vec3f::zero(),
                const Vec3f& velocity = Vec3f::zero());
+
+    // Синхронизирует render_mesh с текущим stack.item->mesh.
+    void sync_render_mesh();
+
+    // Пересчитывает свет вершин render_mesh по текущей позиции в мире.
+    void refresh_mesh_lighting(const World& world);
 
     bool can_pickup() const {
         return alive && pickup_delay <= 0.0f && !stack.empty();

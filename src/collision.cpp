@@ -40,6 +40,39 @@ inline int ceil_to_block(float value) {
     return static_cast<int>(std::ceil(value)) - 1;
 }
 
+// Центр тела, при котором его грань лежит на плоскости block_face.
+// Из-за округления float target +/- half может снова оказаться на волосок
+// внутри блока (например, 16.0f - 0.3f + 0.3f < 16.0f). Такой остаток
+// накапливается и ломает скольжение вдоль стены, поэтому сдвигаем центр
+// на минимальное число ULP, пока грань действительно не выйдет из блока.
+inline float face_separated_position(float block_face,
+                                     float half,
+                                     bool positive_side) {
+    const float infinity = std::numeric_limits<float>::infinity();
+    float target = positive_side ? block_face + half : block_face - half;
+
+    for (int i = 0; i < 4; ++i) {
+        const float edge = positive_side ? target - half : target + half;
+        const bool separated = positive_side ? edge >= block_face
+                                             : edge <= block_face;
+        if (separated) {
+            break;
+        }
+        target = std::nextafter(target,
+                                positive_side ? infinity : -infinity);
+    }
+    return target;
+}
+
+inline int dominant_axis(const Vec3f& value) {
+    const float ax = std::abs(value.x);
+    const float ay = std::abs(value.y);
+    const float az = std::abs(value.z);
+    if (ax >= ay && ax >= az) return 0;
+    if (ay >= az) return 1;
+    return 2;
+}
+
 inline uint64_t pack_chunk_pos(const Vec2i& pos) {
     return (static_cast<uint64_t>(static_cast<uint32_t>(pos.x)) << 32) |
            static_cast<uint32_t>(pos.y);
@@ -167,6 +200,23 @@ bool move_axis(DynamicCollision& body,
                 continue;
             }
 
+            // Если по одной из поперечных осей тело лишь касается блока
+            // (в том числе с микропроникновением из-за float), это не
+            // препятствие впереди, а стена сбоку. Иначе при движении вдоль
+            // ряда блоков тело останавливается на каждом шве.
+            const int lateral_a = (axis + 1) % 3;
+            const int lateral_b = (axis + 2) % 3;
+            auto lateral_overlap = [&](int lateral_axis) {
+                return std::min(component(current.max, lateral_axis),
+                                component(block.max, lateral_axis)) -
+                       std::max(component(current.min, lateral_axis),
+                                component(block.min, lateral_axis));
+            };
+            if (lateral_overlap(lateral_a) <= kContactEpsilon ||
+                lateral_overlap(lateral_b) <= kContactEpsilon) {
+                continue;
+            }
+
             const float block_min = component(block.min, axis);
             const float block_max = component(block.max, axis);
 
@@ -176,14 +226,16 @@ bool move_axis(DynamicCollision& body,
                 if (old_max > block_min + kContactEpsilon) {
                     continue;
                 }
-                target = std::min(target, block_min - half);
+                target = std::min(
+                    target, face_separated_position(block_min, half, false));
                 hit = true;
                 corrected = true;
             } else {
                 if (old_min < block_max - kContactEpsilon) {
                     continue;
                 }
-                target = std::max(target, block_max + half);
+                target = std::max(
+                    target, face_separated_position(block_max, half, true));
                 hit = true;
                 corrected = true;
             }
@@ -247,17 +299,26 @@ void resolve_static_penetration(DynamicCollision& body,
                 continue;
             }
             Vec3f push = current.penetration(block);
-            body.position = body.position + push;
+            const int push_axis = dominant_axis(push);
+            const float push_component = component(push, push_axis);
+            if (push_component == 0.0f) {
+                continue;
+            }
+
+            // Ставим тело ровно к грани (и на один ULP наружу), а не просто
+            // прибавляем push: иначе микропроникновение может исчезнуть
+            // при округлении float, остаться навсегда и заблокировать
+            // движение вдоль стены.
+            const float half = component(body.half_extents, push_axis);
+            const bool positive_side = push_component > 0.0f;
+            const float block_face = component(
+                positive_side ? block.max : block.min, push_axis);
+            set_component(body.position, push_axis,
+                          face_separated_position(block_face, half,
+                                                  positive_side));
 
             // Гасим скорость в направлении выталкивания.
-            if (std::abs(push.x) >= std::abs(push.y) &&
-                std::abs(push.x) >= std::abs(push.z)) {
-                body.velocity.x = 0.0f;
-            } else if (std::abs(push.y) >= std::abs(push.z)) {
-                body.velocity.y = 0.0f;
-            } else {
-                body.velocity.z = 0.0f;
-            }
+            set_component(body.velocity, push_axis, 0.0f);
             corrected = true;
         }
         if (!corrected) {

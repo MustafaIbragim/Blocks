@@ -133,6 +133,9 @@ PYBIND11_MODULE(item_module, m) {
         .def_readwrite("id", &ItemEntity::id)
         .def_readwrite("sprite_size", &ItemEntity::sprite_size)
         .def_readwrite("render_position", &ItemEntity::render_position)
+        .def_readwrite("render_mesh", &ItemEntity::render_mesh)
+        .def_readwrite("mesh_offset", &ItemEntity::mesh_offset)
+        .def("sync_render_mesh", &ItemEntity::sync_render_mesh)
         .def_property_readonly(
             "collision_body",
             [](ItemEntity& entity) -> FragmentCollision& {

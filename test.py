@@ -491,13 +491,18 @@ def test_renderer():
                 continue
             pos = entity.render_position
             item = entity.stack.item
-            if item is not None and item.mesh is not None:
-                # Куб центрирован вокруг своего центра, а физическое тело
-                # предмета стоит на полу нижней гранью. Поднимаем центр на
-                # половину разницы высот тела и модели.
+            # World уже синхронизировал per-instance копию меша и пересчитал
+            # её освещение; общий item.mesh здесь использовать нельзя.
+            mesh = entity.render_mesh
+            if mesh is None and item is not None:
+                mesh = item.mesh
+            if mesh is not None:
+                offset = entity.mesh_offset
                 item_meshes.append(rm.MeshInstance(
-                    item.mesh,
-                    vm.Vec3f(pos.x, pos.y + 0.2, pos.z),
+                    mesh,
+                    vm.Vec3f(pos.x + offset.x,
+                             pos.y + offset.y,
+                             pos.z + offset.z),
                     vm.Vec3f(1.0, 1.0, 1.0),
                     ITEM_TEXTURE_ID,
                 ))

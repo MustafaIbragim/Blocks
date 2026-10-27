@@ -71,7 +71,8 @@ public:
     // загружены заранее через upload_texture(texture_id, image). Меши
     // кэшируются по адресу и могут переиспользоваться между кадрами.
     void render_meshes(const std::vector<MeshInstance>& instances,
-                       const ViewCam& camera);
+                       const ViewCam& camera,
+                       float min_light = 0.1f);
 
     // Рисует набор спрайтов после основного прохода. Текстуры должны быть
     // загружены заранее через upload_texture(texture_id, image).
@@ -113,6 +114,7 @@ private:
         uint32_t vao = 0;
         uint32_t vbo = 0;
         uint32_t vertex_count = 0;
+        uint32_t light_revision = 0;
     };
 
     std::unordered_map<uint32_t, GPUMesh> block_meshes;

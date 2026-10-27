@@ -56,14 +56,15 @@ bool ChunkMesher::is_neighbor_cube(
 }
 
 uint8_t ChunkMesher::get_vertex_light(const Chunk& chunk, int32_t vx, int32_t vy, int32_t vz) {
-    uint32_t total = 0;
+    uint8_t total = 0;
+    uint8_t light_data = 0;
     int count = 0;
 
     int32_t offsets[8][3] = {
         { 0,  0,  0}, {-1,  0,  0}, { 0, -1,  0}, { 0,  0, -1},
         {-1, -1,  0}, {-1,  0, -1}, { 0, -1, -1}, {-1, -1, -1}
     };
-
+    
     for (auto& off : offsets) {
         int32_t x = vx + off[0];
         int32_t y = vy + off[1];
@@ -75,12 +76,13 @@ uint8_t ChunkMesher::get_vertex_light(const Chunk& chunk, int32_t vx, int32_t vy
                 static_cast<uint16_t>(y),
                 static_cast<uint8_t>(z)
             );
-            total += chunk.light_data[idx];
+            light_data = chunk.light_data[idx];
+            if (light_data > total) {total = light_data;}
             count++;
         }
     }
-
-    return count > 0 ? static_cast<uint8_t>(total / count) : 0;
+    
+    return count > 0 ? total : 0;
 }
 
 void ChunkMesher::add_face(

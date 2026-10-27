@@ -80,4 +80,5 @@ void Mesh::clear() {
     vertices.clear();
     indices.clear();
     faces.clear();
+    ++light_revision;
 }

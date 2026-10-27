@@ -207,8 +207,10 @@ void Renderer::compile_shaders() {
         #version 330 core
         layout(location = 0) in vec3 aPos;
         layout(location = 1) in vec2 aUV;
+        layout(location = 2) in float aBlockLight;
         
         out vec2 vUV;
+        out float vBlockLight;
         
         uniform mat4 uView;
         uniform mat4 uProjection;
@@ -217,19 +219,25 @@ void Renderer::compile_shaders() {
         void main() {
             gl_Position = uProjection * uView * uModel * vec4(aPos, 1.0);
             vUV = aUV;
+            vBlockLight = aBlockLight;
         }
     )";
     
     std::string entity_fragment_source = R"(
         #version 330 core
         in vec2 vUV;
+        in float vBlockLight;
         
         out vec4 FragColor;
         
         uniform sampler2D uTexture;
+        uniform float u_min_light;
         
         void main() {
-            FragColor = texture(uTexture, vUV);
+            float final_light = u_min_light +
+                                (1.0 - u_min_light) * vBlockLight;
+            FragColor = texture(uTexture, vUV) *
+                        vec4(final_light, final_light, final_light, 1.0);
         }
     )";
     
@@ -486,14 +494,21 @@ void Renderer::compute_camera_matrices(const ViewCam& camera, float view[16],
 
 const Renderer::GPUItemMesh& Renderer::get_item_mesh(const Mesh& mesh) {
     auto existing = item_meshes.find(&mesh);
-    if (existing != item_meshes.end()) {
+    if (existing != item_meshes.end() &&
+        existing->second.light_revision == mesh.light_revision) {
         return existing->second;
+    }
+
+    if (existing != item_meshes.end()) {
+        if (existing->second.vbo != 0) glDeleteBuffers(1, &existing->second.vbo);
+        if (existing->second.vao != 0) glDeleteVertexArrays(1, &existing->second.vao);
+        item_meshes.erase(existing);
     }
 
     std::vector<float> vertices;
     const size_t triangle_count =
         std::min(mesh.faces.size(), mesh.indices.size() / 3);
-    vertices.reserve(triangle_count * 18);
+    vertices.reserve(triangle_count * 21);
 
     for (size_t tri = 0; tri < triangle_count; ++tri) {
         const FaceData& face = mesh.faces[tri];
@@ -511,11 +526,13 @@ const Renderer::GPUItemMesh& Renderer::get_item_mesh(const Mesh& mesh) {
             vertices.push_back(vertex.z);
             vertices.push_back(u[corner]);
             vertices.push_back(v[corner]);
+            vertices.push_back(static_cast<float>(vertex.block_light) / 255.0f);
         }
     }
 
     GPUItemMesh gpu{};
-    gpu.vertex_count = static_cast<uint32_t>(vertices.size() / 5);
+    gpu.light_revision = mesh.light_revision;
+    gpu.vertex_count = static_cast<uint32_t>(vertices.size() / 6);
     if (gpu.vertex_count == 0) {
         item_meshes[&mesh] = gpu;
         return item_meshes[&mesh];
@@ -530,12 +547,15 @@ const Renderer::GPUItemMesh& Renderer::get_item_mesh(const Mesh& mesh) {
                  static_cast<GLsizeiptr>(vertices.size() * sizeof(float)),
                  vertices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
                           (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
                           (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+                          (void*)(5 * sizeof(float)));
+    glEnableVertexAttribArray(2);
     glBindVertexArray(0);
 
     item_meshes[&mesh] = gpu;
@@ -543,7 +563,8 @@ const Renderer::GPUItemMesh& Renderer::get_item_mesh(const Mesh& mesh) {
 }
 
 void Renderer::render_meshes(const std::vector<MeshInstance>& instances,
-                             const ViewCam& camera) {
+                             const ViewCam& camera,
+                             float min_light) {
     if (instances.empty() || entity_shader_program == 0 || window == nullptr) {
         return;
     }
@@ -558,6 +579,8 @@ void Renderer::render_meshes(const std::vector<MeshInstance>& instances,
     glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uProjection"),
                        1, GL_FALSE, proj);
     glUniform1i(glGetUniformLocation(entity_shader_program, "uTexture"), 0);
+    glUniform1f(glGetUniformLocation(entity_shader_program, "u_min_light"),
+                min_light);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);

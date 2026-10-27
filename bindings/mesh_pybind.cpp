@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/numpy.h>
+#include <cstddef>
 #include "mesh.h"
 
 
@@ -47,6 +48,24 @@ PYBIND11_MODULE(mesh_module, m) {
 
         .def("clear", &Mesh::clear)
 
+        .def_readonly("light_revision", &Mesh::light_revision)
+        .def("vertex_light", [](const Mesh& self, size_t index) {
+            if (index >= self.vertices.size()) {
+                throw py::index_error("vertex index out of range");
+            }
+            return self.vertices[index].block_light;
+        }, py::arg("index"), "Освещение вершины (0..255)")
+        .def_property_readonly("vertex_light_np", [](Mesh& self) {
+            std::vector<py::ssize_t> shape = {
+                static_cast<py::ssize_t>(self.vertices.size())};
+            std::vector<py::ssize_t> strides = {
+                static_cast<py::ssize_t>(sizeof(Vertex))};
+            return py::array_t<uint8_t>(
+                shape, strides,
+                reinterpret_cast<uint8_t*>(self.vertices.data()) +
+                    offsetof(Vertex, block_light),
+                py::capsule(&self));
+        }, "Освещение вершин (N,) uint8. Без копирования.")
         .def_property_readonly("vertex_count", &Mesh::vertex_count)
         .def_property_readonly("index_count", &Mesh::index_count)
         .def_property_readonly("triangle_count", &Mesh::triangle_count)
