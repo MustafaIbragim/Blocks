@@ -135,6 +135,16 @@ bool move_axis(DynamicCollision& body,
         return false;
     }
 
+    // Запоминаем положение до движения. Если тело уже перекрывало блок по
+    // этой оси (например, из-за касания боком и погрешности float), то
+    // движение по оси не должно «выталкивать» его на противоположную грань.
+    // Иначе касание головой стены при движении вниз телепортировало тело
+    // наверх стены.
+    const float old_pos = component(body.position, axis);
+    const float half = component(body.half_extents, axis);
+    const float old_min = old_pos - half;
+    const float old_max = old_pos + half;
+
     set_component(body.position, axis,
                   component(body.position, axis) + delta);
 
@@ -149,49 +159,42 @@ bool move_axis(DynamicCollision& body,
         collect_static_boxes(world, statics, body_box, boxes);
 
         bool corrected = false;
+        float target = component(body.position, axis);
+
         for (const Aabb& block : boxes) {
             Aabb current = body.get_bounds();
             if (!current.overlaps(block)) {
                 continue;
             }
 
-            hit = true;
-            const float half = component(body.half_extents, axis);
-            const float current_pos = component(body.position, axis);
+            const float block_min = component(block.min, axis);
+            const float block_max = component(block.max, axis);
 
             if (delta > 0.0f) {
-                const float target = component(block.min, axis) - half;
-                if (target < current_pos) {
-                    set_component(body.position, axis, target);
-                } else {
-                    Vec3f push = current.penetration(block);
-                    set_component(body.position, axis,
-                                  current_pos + component(push, axis));
+                // Блок должен находиться перед телом по направлению движения.
+                // Небольшой допуск нужен для стабильного касания гранью.
+                if (old_max > block_min + kContactEpsilon) {
+                    continue;
                 }
-                corrected = true;
-            } else if (delta < 0.0f) {
-                const float target = component(block.max, axis) + half;
-                if (target > current_pos) {
-                    set_component(body.position, axis, target);
-                } else {
-                    Vec3f push = current.penetration(block);
-                    set_component(body.position, axis,
-                                  current_pos + component(push, axis));
-                }
+                target = std::min(target, block_min - half);
+                hit = true;
                 corrected = true;
             } else {
-                Vec3f push = current.penetration(block);
-                set_component(body.position, axis,
-                              current_pos + component(push, axis));
+                if (old_min < block_max - kContactEpsilon) {
+                    continue;
+                }
+                target = std::max(target, block_max + half);
+                hit = true;
                 corrected = true;
             }
-
-            set_component(body.velocity, axis, 0.0f);
         }
 
         if (!corrected) {
             break;
         }
+
+        set_component(body.position, axis, target);
+        set_component(body.velocity, axis, 0.0f);
     }
 
     return hit;

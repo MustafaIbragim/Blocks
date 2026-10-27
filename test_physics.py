@@ -2,6 +2,8 @@ import math
 import os
 import sys
 
+import numpy as np
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(ROOT, "python"))
 sys.path.insert(0, os.path.join(ROOT, "lib"))
@@ -211,7 +213,37 @@ def test_voxel_world_collision():
 
 
 # ---------------------------------------------------------------------------
-# 5. Поведенческое разделение: Entity vs Fragment
+# 5. Боковое касание стены не должно поднимать Dummy на её верх
+# ---------------------------------------------------------------------------
+def test_no_upward_push_on_wall_touch():
+    world, dirt, block_mgr, tex_blocks_mgr, tex_mgr = make_world()
+    physics = make_collision_world(world)
+
+    # Стена на высоте головы. Dummy идёт в неё по -Z: тело касается стены
+    # боком, но по Y уже перекрывает блок. Раньше последующий шаг гравитации
+    # выбирал верхнюю грань блока и телепортировал тело наверх.
+    world.set_block(vm.Vec3i(16, 12, 14), dirt)
+
+    dummy = dm.Dummy(vm.Vec3f(16.0, 11.9, 20.0),
+                     vm.Vec3r(0.0, 0.0, 0.0, False))
+    physics.add_entity(dummy.body)
+
+    max_y = dummy.body.position.y
+    for _ in range(180):
+        dummy.body.velocity = vm.Vec3f(
+            0.0, dummy.body.velocity.y, -8.0)
+        physics.step(1.0 / 60.0)
+        max_y = max(max_y, dummy.body.position.y)
+
+    assert max_y < 12.2, \
+        f"боковое касание подбросило Dummy на стену: max_y={max_y}"
+    assert close(dummy.body.position.z, 15.3, 1e-3), \
+        f"Dummy должен остановиться у стены: {dummy.body.position}"
+    print("  Static wall: боковое касание не телепортирует вверх OK")
+
+
+# ---------------------------------------------------------------------------
+# 6. Поведенческое разделение: Entity vs Fragment
 # ---------------------------------------------------------------------------
 def test_entity_fragment_split():
     world, dirt, block_mgr, tex_blocks_mgr, tex_mgr = make_world()
@@ -251,7 +283,7 @@ def test_entity_fragment_split():
 
 
 # ---------------------------------------------------------------------------
-# 6. Триггеры: enter/exit без физического отклика
+# 7. Триггеры: enter/exit без физического отклика
 # ---------------------------------------------------------------------------
 class RecordingTrigger(pm.TriggerCollision):
     def __init__(self, position, half_extents):
@@ -295,7 +327,7 @@ def test_trigger():
 
 
 # ---------------------------------------------------------------------------
-# 7. Отставание графики на 2 такта и особая камера Dummy
+# 8. Отставание графики на 2 такта и особая камера Dummy
 # ---------------------------------------------------------------------------
 def test_interpolation():
     physics = pm.CollisionWorld()
@@ -342,11 +374,17 @@ def test_interpolation():
 
 
 # ---------------------------------------------------------------------------
-# 8. ItemEntity использует FragmentCollision и отстающую render_position
+# 9. ItemEntity использует FragmentCollision и отстающую render_position
 # ---------------------------------------------------------------------------
 def test_item_physics():
     world, dirt, block_mgr, tex_blocks_mgr, tex_mgr = make_world()
     stone = items.Item("stone", None, 64)
+    stone.mesh = items.Item.create_cube_mesh(0.8)
+    assert stone.mesh is not None
+    assert stone.mesh.triangle_count == 12
+    vertices = np.asarray(stone.mesh.vertices_np)
+    assert close(vertices[:, 0].min(), -0.4)
+    assert close(vertices[:, 0].max(), 0.4)
     stack = items.ItemStack(stone, 1)
     entity_id = world.spawn_item_entity(
         stack, vm.Vec3f(16.0, 20.0, 16.0), vm.Vec3f(0.0, 0.0, 0.0))
@@ -373,6 +411,7 @@ def main():
     test_mesh_split()
     test_entity_on_static()
     test_voxel_world_collision()
+    test_no_upward_push_on_wall_touch()
     test_entity_fragment_split()
     test_trigger()
     test_interpolation()

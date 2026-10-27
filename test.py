@@ -159,6 +159,9 @@ def test_renderer():
             item_image.set_pixel(px, py, color)
 
     stone_item = items.Item("stone", item_image, 64)
+    # 3D-модель выброшенного предмета: куб 0.8 блока. Иконка выше остаётся
+    # для HUD; геометрия используется только рендерером.
+    stone_item.mesh = items.Item.create_cube_mesh(0.8)
     stone_item.block = dirt
 
     player_inventory = items.Inventory(9)
@@ -479,17 +482,32 @@ def test_renderer():
         camera.set_view(dummy.view)
         camera.render(tick, 0.1)
 
-        # Спрайты выброшенных предметов.
+        # Выброшенные предметы: 3D-меш из Item, если он задан. Спрайт
+        # остаётся запасным вариантом для предметов без геометрии.
+        item_meshes = []
         item_sprites = []
         for entity in world.get_item_entities():
             if not entity.alive or entity.stack.empty():
                 continue
             pos = entity.render_position
-            item_sprites.append(rm.Sprite(
-                vm.Vec3f(pos.x, pos.y + 0.2, pos.z),
-                entity.sprite_size,
-                ITEM_TEXTURE_ID,
-            ))
+            item = entity.stack.item
+            if item is not None and item.mesh is not None:
+                # Куб центрирован вокруг своего центра, а физическое тело
+                # предмета стоит на полу нижней гранью. Поднимаем центр на
+                # половину разницы высот тела и модели.
+                item_meshes.append(rm.MeshInstance(
+                    item.mesh,
+                    vm.Vec3f(pos.x, pos.y + 0.2, pos.z),
+                    vm.Vec3f(1.0, 1.0, 1.0),
+                    ITEM_TEXTURE_ID,
+                ))
+            else:
+                item_sprites.append(rm.Sprite(
+                    vm.Vec3f(pos.x, pos.y + 0.2, pos.z),
+                    entity.sprite_size,
+                    ITEM_TEXTURE_ID,
+                ))
+        renderer.render_meshes(item_meshes, dummy.view)
         renderer.render_sprites(item_sprites, dummy.view)
 
         # HUD: иконка предмета в слоте 0 и его количество в левом нижнем углу.

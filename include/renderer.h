@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <memory>
+#include <utility>
 #include <vector>
 #include "vec.h"
 #include "mesh.h"
@@ -30,6 +31,25 @@ struct Sprite {
 };
 
 
+// Экземпляр 3D-меша с обычной 2D-текстурой. Используется для выброшенных
+// предметов: Item::mesh задаёт геометрию, texture_id — иконку предмета.
+// Меш должен быть центрирован в начале координат; position — его центр в мире.
+struct MeshInstance {
+    std::shared_ptr<Mesh> mesh;
+    Vec3f position;
+    Vec3f scale = Vec3f::one();
+    uint32_t texture_id = 0;
+
+    MeshInstance() = default;
+    MeshInstance(std::shared_ptr<Mesh> mesh,
+                 const Vec3f& position,
+                 const Vec3f& scale = Vec3f::one(),
+                 uint32_t texture_id = 0)
+        : mesh(std::move(mesh)), position(position), scale(scale),
+          texture_id(texture_id) {}
+};
+
+
 class Renderer {
 public:
     Renderer();
@@ -46,6 +66,12 @@ public:
     void remove_mesh(uint32_t mesh_id);
     
     void render(uint64_t current_tick, const ViewCam& camera, float min_light);
+
+    // Рисует набор 3D-мешей после основного прохода. Текстуры должны быть
+    // загружены заранее через upload_texture(texture_id, image). Меши
+    // кэшируются по адресу и могут переиспользоваться между кадрами.
+    void render_meshes(const std::vector<MeshInstance>& instances,
+                       const ViewCam& camera);
 
     // Рисует набор спрайтов после основного прохода. Текстуры должны быть
     // загружены заранее через upload_texture(texture_id, image).
@@ -82,9 +108,19 @@ private:
         uint32_t vao, vbo, fbo; // fbo — буфер данных граней (uv/layer/anim)
         uint32_t vertex_count;
     };
+
+    struct GPUItemMesh {
+        uint32_t vao = 0;
+        uint32_t vbo = 0;
+        uint32_t vertex_count = 0;
+    };
+
     std::unordered_map<uint32_t, GPUMesh> block_meshes;
     std::unordered_map<uint32_t, uint32_t> entity_textures;
-    
+    std::unordered_map<const Mesh*, GPUItemMesh> item_meshes;
+    std::unordered_map<const Mesh*, std::shared_ptr<Mesh>> item_mesh_sources;
+
+    const GPUItemMesh& get_item_mesh(const Mesh& mesh);
     void compile_shaders();
     void setup_opengl_state();
     uint32_t compile_shader(uint32_t type, const std::string& source);

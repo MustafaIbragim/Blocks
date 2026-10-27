@@ -69,6 +69,14 @@ void Renderer::cleanup() {
             glDeleteTextures(1, &tex_id);
         }
         entity_textures.clear();
+
+        // Удаляем кэш 3D-мешей предметов.
+        for (auto& [source, mesh] : item_meshes) {
+            glDeleteVertexArrays(1, &mesh.vao);
+            glDeleteBuffers(1, &mesh.vbo);
+        }
+        item_meshes.clear();
+        item_mesh_sources.clear();
         
         // Удаляем array texture блоков
         if (block_texture_array_id) {
@@ -204,9 +212,10 @@ void Renderer::compile_shaders() {
         
         uniform mat4 uView;
         uniform mat4 uProjection;
+        uniform mat4 uModel;
         
         void main() {
-            gl_Position = uProjection * uView * vec4(aPos, 1.0);
+            gl_Position = uProjection * uView * uModel * vec4(aPos, 1.0);
             vUV = aUV;
         }
     )";
@@ -475,6 +484,125 @@ void Renderer::compute_camera_matrices(const ViewCam& camera, float view[16],
     std::copy(std::begin(proj_values), std::end(proj_values), proj);
 }
 
+const Renderer::GPUItemMesh& Renderer::get_item_mesh(const Mesh& mesh) {
+    auto existing = item_meshes.find(&mesh);
+    if (existing != item_meshes.end()) {
+        return existing->second;
+    }
+
+    std::vector<float> vertices;
+    const size_t triangle_count =
+        std::min(mesh.faces.size(), mesh.indices.size() / 3);
+    vertices.reserve(triangle_count * 18);
+
+    for (size_t tri = 0; tri < triangle_count; ++tri) {
+        const FaceData& face = mesh.faces[tri];
+        const float u[3] = {face.u_0, face.u_1, face.u_2};
+        const float v[3] = {face.v_0, face.v_1, face.v_2};
+
+        for (int corner = 0; corner < 3; ++corner) {
+            const uint32_t index = mesh.indices[tri * 3 + corner];
+            if (index >= mesh.vertices.size()) {
+                continue;
+            }
+            const Vertex& vertex = mesh.vertices[index];
+            vertices.push_back(vertex.x);
+            vertices.push_back(vertex.y);
+            vertices.push_back(vertex.z);
+            vertices.push_back(u[corner]);
+            vertices.push_back(v[corner]);
+        }
+    }
+
+    GPUItemMesh gpu{};
+    gpu.vertex_count = static_cast<uint32_t>(vertices.size() / 5);
+    if (gpu.vertex_count == 0) {
+        item_meshes[&mesh] = gpu;
+        return item_meshes[&mesh];
+    }
+
+    glGenVertexArrays(1, &gpu.vao);
+    glGenBuffers(1, &gpu.vbo);
+
+    glBindVertexArray(gpu.vao);
+    glBindBuffer(GL_ARRAY_BUFFER, gpu.vbo);
+    glBufferData(GL_ARRAY_BUFFER,
+                 static_cast<GLsizeiptr>(vertices.size() * sizeof(float)),
+                 vertices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                          (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                          (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindVertexArray(0);
+
+    item_meshes[&mesh] = gpu;
+    return item_meshes[&mesh];
+}
+
+void Renderer::render_meshes(const std::vector<MeshInstance>& instances,
+                             const ViewCam& camera) {
+    if (instances.empty() || entity_shader_program == 0 || window == nullptr) {
+        return;
+    }
+
+    float view[16];
+    float proj[16];
+    compute_camera_matrices(camera, view, proj);
+
+    glUseProgram(entity_shader_program);
+    glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uView"),
+                       1, GL_FALSE, view);
+    glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uProjection"),
+                       1, GL_FALSE, proj);
+    glUniform1i(glGetUniformLocation(entity_shader_program, "uTexture"), 0);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
+
+    glActiveTexture(GL_TEXTURE0);
+
+    for (const MeshInstance& instance : instances) {
+        if (!instance.mesh) {
+            continue;
+        }
+        auto texture_it = entity_textures.find(instance.texture_id);
+        if (texture_it == entity_textures.end()) {
+            continue;
+        }
+
+        // Держим исходный меш живым, пока живёт GPU-кэш: ключ — адрес Mesh.
+        item_mesh_sources[instance.mesh.get()] = instance.mesh;
+        const GPUItemMesh& gpu = get_item_mesh(*instance.mesh);
+        if (gpu.vertex_count == 0) {
+            continue;
+        }
+
+        // Колоночная матрица: масштаб, затем перенос в мировую позицию.
+        const float model[16] = {
+            instance.scale.x, 0.0f, 0.0f, 0.0f,
+            0.0f, instance.scale.y, 0.0f, 0.0f,
+            0.0f, 0.0f, instance.scale.z, 0.0f,
+            instance.position.x, instance.position.y, instance.position.z, 1.0f
+        };
+        glUniformMatrix4fv(
+            glGetUniformLocation(entity_shader_program, "uModel"),
+            1, GL_FALSE, model);
+
+        glBindVertexArray(gpu.vao);
+        glBindTexture(GL_TEXTURE_2D, texture_it->second);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(gpu.vertex_count));
+    }
+
+    glBindVertexArray(0);
+}
+
 void Renderer::render_sprites(const std::vector<Sprite>& sprites,
                               const ViewCam& camera) {
     if (sprites.empty() || entity_shader_program == 0 || window == nullptr) {
@@ -515,11 +643,20 @@ void Renderer::render_sprites(const std::vector<Sprite>& sprites,
     const Vec3f right = up.cross(z_axis).normalized();
     const Vec3f cam_up = z_axis.cross(right);
 
+    const float identity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+
     glUseProgram(entity_shader_program);
     glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uView"),
                        1, GL_FALSE, view);
     glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uProjection"),
                        1, GL_FALSE, proj);
+    glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uModel"),
+                       1, GL_FALSE, identity);
     glUniform1i(glGetUniformLocation(entity_shader_program, "uTexture"), 0);
 
     glEnable(GL_BLEND);
@@ -622,6 +759,8 @@ void Renderer::render_screen_texture(uint32_t texture_id, float x, float y,
     glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uView"),
                        1, GL_FALSE, identity);
     glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uProjection"),
+                       1, GL_FALSE, identity);
+    glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uModel"),
                        1, GL_FALSE, identity);
     glUniform1i(glGetUniformLocation(entity_shader_program, "uTexture"), 0);
 

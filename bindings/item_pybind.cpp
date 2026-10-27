@@ -26,6 +26,7 @@ PYBIND11_MODULE(item_module, m) {
     py::module_::import("image_module");
     py::module_::import("entity_module");
     py::module_::import("block_module");
+    py::module_::import("mesh_module");
 
     m.doc() = "Items: descriptors, stacks, inventories and item entities";
 
@@ -51,8 +52,12 @@ PYBIND11_MODULE(item_module, m) {
              py::arg("max_stack") = 1)
         .def_readwrite("name", &Item::name)
         .def_readwrite("image", &Item::image)
+        .def_readwrite("mesh", &Item::mesh)
         .def_readwrite("block", &Item::block)
         .def_readwrite("stack_limit_code", &Item::stack_limit_code)
+        .def_static("create_cube_mesh", &Item::create_cube_mesh,
+                    py::arg("size") = 0.8f,
+                    "Центрированный куб для 3D-отображения предмета")
         .def_property("max_stack", &Item::max_stack, &Item::set_max_stack)
         .def("set_max_stack", &Item::set_max_stack, py::arg("value"))
         .def("action_0", &Item::action_0, py::arg("context"),

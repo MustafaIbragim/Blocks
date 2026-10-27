@@ -7,18 +7,79 @@
 #include "world.h"
 
 
+namespace {
+
+void add_item_quad(Mesh& mesh,
+                   const Vec3f& p0,
+                   const Vec3f& p1,
+                   const Vec3f& p2,
+                   const Vec3f& p3) {
+    const uint32_t i0 = mesh.add_vertex(p0);
+    const uint32_t i1 = mesh.add_vertex(p1);
+    const uint32_t i2 = mesh.add_vertex(p2);
+    const uint32_t i3 = mesh.add_vertex(p3);
+
+    FaceData first{};
+    first.u_0 = 0.0f; first.v_0 = 0.0f;
+    first.u_1 = 0.0f; first.v_1 = 1.0f;
+    first.u_2 = 1.0f; first.v_2 = 1.0f;
+    first.layer = 0;
+    first.anim_data = 0;
+
+    FaceData second = first;
+    second.u_0 = 0.0f; second.v_0 = 0.0f;
+    second.u_1 = 1.0f; second.v_1 = 1.0f;
+    second.u_2 = 1.0f; second.v_2 = 0.0f;
+
+    mesh.add_triangle(i0, i1, i2, first);
+    mesh.add_triangle(i0, i2, i3, second);
+}
+
+} // namespace
+
+
 // ============================================================================
 // Item
 // ============================================================================
 
 Item::Item()
-    : name("item"), image(nullptr), block(nullptr), stack_limit_code(0) {}
+    : name("item"), image(nullptr), mesh(nullptr), block(nullptr),
+      stack_limit_code(0) {}
 
 Item::Item(const std::string& name,
            std::shared_ptr<Image> image,
            uint16_t max_stack)
-    : name(name), image(std::move(image)), block(nullptr), stack_limit_code(0) {
+    : name(name), image(std::move(image)), mesh(nullptr), block(nullptr),
+      stack_limit_code(0) {
     set_max_stack(max_stack);
+}
+
+std::shared_ptr<Mesh> Item::create_cube_mesh(float size) {
+    if (!(size > 0.0f)) {
+        size = 0.8f;
+    }
+    const float h = size * 0.5f;
+
+    auto mesh = std::make_shared<Mesh>();
+    add_item_quad(*mesh,
+        Vec3f(-h, -h,  h), Vec3f(-h,  h,  h),
+        Vec3f(-h,  h, -h), Vec3f(-h, -h, -h));
+    add_item_quad(*mesh,
+        Vec3f( h, -h, -h), Vec3f( h,  h, -h),
+        Vec3f( h,  h,  h), Vec3f( h, -h,  h));
+    add_item_quad(*mesh,
+        Vec3f(-h, -h, -h), Vec3f( h, -h, -h),
+        Vec3f( h, -h,  h), Vec3f(-h, -h,  h));
+    add_item_quad(*mesh,
+        Vec3f(-h,  h, -h), Vec3f(-h,  h,  h),
+        Vec3f( h,  h,  h), Vec3f( h,  h, -h));
+    add_item_quad(*mesh,
+        Vec3f(-h, -h, -h), Vec3f(-h,  h, -h),
+        Vec3f( h,  h, -h), Vec3f( h, -h, -h));
+    add_item_quad(*mesh,
+        Vec3f( h, -h,  h), Vec3f( h,  h,  h),
+        Vec3f(-h,  h,  h), Vec3f(-h, -h,  h));
+    return mesh;
 }
 
 bool Item::action_0(ItemActionContext& context) const {
