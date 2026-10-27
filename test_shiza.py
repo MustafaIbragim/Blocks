@@ -28,7 +28,8 @@ import numpy as np
 
 def test_renderer():
     print("=== Renderer + Input + Camera/Dummy + C++ Raycast ===")
-
+    
+    import vec_module as vm
     import renderer_module as rm
     import input_module as im
     import world_module as wm
@@ -36,13 +37,12 @@ def test_renderer():
     import texture_module as tm
     import image_module as img_module
     import chunk_module as cm
-    import vec_module as vm
     import raycast_module as rc
     import dummy_module as dm
     import camera_module as cam
     import collision_module as pm
     import item_module as items
-
+    
     # ------------------------------------------------------------------
     # Быстрые проверки хранилища: NBT как uint16, обратная запись из блока
     # ------------------------------------------------------------------
@@ -51,11 +51,11 @@ def test_renderer():
     assert scratch_chunk.get_nbt(0, 0, 0) == 0xABCD
     scratch_chunk.nuggets[0].set_nbt_by_index(1, 0x1234)
     assert scratch_chunk.nuggets[0].get_nbt_by_index(1) == 0x1234
-
+    
     class NbtTickBlock(bm.Block):
-        def on_tick(self, pos, tick, nbt):
+        def on_tick(self, pos, tick, nbt=0):
             return (nbt + 1) & 0xFFFF
-
+    
     nbt_mgr = bm.BlockManager()
     nbt_block = NbtTickBlock(0, "nbt_tick_test")
     nbt_block.id = nbt_mgr.register_block(nbt_block)
@@ -66,7 +66,7 @@ def test_renderer():
     nbt_chunk.tick_all(1, nbt_mgr)
     assert nbt_chunk.get_nbt(0, 0, 0) == 42
     print("  [OK] NBT: uint16 хранится в чанке и меняется самим блоком")
-
+    
     scratch_mgr = bm.BlockManager()
     scratch_item = items.Item("scratch", None, 64)
     scratch_inv = items.Inventory(2)

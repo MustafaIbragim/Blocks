@@ -1,0 +1,9 @@
+[tool.mypy]
+mypy_path = "stubs"
+python_path = ["python", "lib"]
+
+[tool.pyright]
+stubPath = "stubs"
+extraPaths = ["python", "lib"]
+
+
