@@ -4,9 +4,9 @@
 
 #include "block.h"
 #include "chunk.h"
+#include "collision.h"
 #include "texture.h"
 #include "world.h"
-#include "physics_world.h"
 
 int main() {
     BlockManager block_mgr;
@@ -27,8 +27,8 @@ int main() {
         }
     }
 
-    PhysicsWorld physics;
-    physics.add_chunk(world, Vec2i(0, 0));
+    CollisionWorld physics;
+    physics.set_world(world);
 
     int failures = 0;
 
@@ -42,35 +42,40 @@ int main() {
                outside->name.c_str());
     }
 
-    // 2. Сфера летит горизонтально к краю чанка (x=32). Барьер незагруженного
-    //    чанка (1,0) должен её остановить.
-    uint32_t ball = physics.add_dynamic_sphere(0.4f, 1.0f, Vec3f(30.0f, 15.5f, 16.0f));
-    physics.set_body_gravity(ball, Vec3f(0.0f, 0.0f, 0.0f));  // без падения
-    physics.set_body_linear_velocity(ball, Vec3f(20.0f, 0.0f, 0.0f));
+    // 2. AABB-сущность летит горизонтально к краю чанка (x=32). Барьер
+    //    незагруженного чанка (1,0) должен её остановить.
+    uint32_t ball = physics.add_entity(
+        Vec3f(0.4f, 0.4f, 0.4f), Vec3f(30.0f, 15.5f, 16.0f), 1.0f);
+    EntityCollision* ball_body = physics.get_entity(ball);
+    ball_body->gravity_enabled = false;
+    ball_body->velocity = Vec3f(20.0f, 0.0f, 0.0f);
     for (int i = 0; i < 600; ++i) {
-        physics.step(1.0f / 60.0f, 1, 1.0f / 60.0f);
+        physics.step(1.0f / 60.0f);
     }
-    Vec3f pos = physics.get_body_position(ball);
-    printf("ball position after flight to +X edge: %.3f %.3f %.3f\n", pos.x, pos.y, pos.z);
+    Vec3f pos = ball_body->position;
+    printf("ball position after flight to +X edge: %.3f %.3f %.3f\n",
+           pos.x, pos.y, pos.z);
     if (pos.x > 32.0f - 0.4f + 0.01f) {
-        printf("FAIL: sphere crossed the chunk-edge barrier (x=%.3f)\n", pos.x);
+        printf("FAIL: entity crossed the chunk-edge barrier (x=%.3f)\n", pos.x);
         ++failures;
     } else {
-        printf("OK: sphere stopped by barrier at chunk edge\n");
+        printf("OK: entity stopped by barrier at chunk edge\n");
     }
 
-    // 3. Контроль: внутри чанка над полом сфера покоится (не проваливается).
-    uint32_t rest = physics.add_dynamic_sphere(0.5f, 1.0f, Vec3f(16.0f, 20.0f, 16.0f));
+    // 3. Контроль: внутри чанка над полом тело покоится (не проваливается).
+    uint32_t rest = physics.add_entity(
+        Vec3f(0.5f, 0.5f, 0.5f), Vec3f(16.0f, 20.0f, 16.0f), 1.0f);
     for (int i = 0; i < 360; ++i) {
-        physics.step(1.0f / 60.0f, 1, 1.0f / 60.0f);
+        physics.step(1.0f / 60.0f);
     }
-    Vec3f rest_pos = physics.get_body_position(rest);
-    printf("rest sphere position: %.3f %.3f %.3f\n", rest_pos.x, rest_pos.y, rest_pos.z);
-    if (!(rest_pos.y > 11.2f && rest_pos.y < 11.9f)) {
-        printf("FAIL: control sphere did not rest on floor\n");
+    Vec3f rest_pos = physics.get_entity(rest)->position;
+    printf("rest entity position: %.3f %.3f %.3f\n",
+           rest_pos.x, rest_pos.y, rest_pos.z);
+    if (!(rest_pos.y > 11.4f && rest_pos.y < 11.6f)) {
+        printf("FAIL: control entity did not rest on floor\n");
         ++failures;
     } else {
-        printf("OK: control sphere rests on floor\n");
+        printf("OK: control entity rests on floor\n");
     }
 
     if (failures == 0) {

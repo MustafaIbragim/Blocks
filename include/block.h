@@ -5,11 +5,10 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include "collision.h"
 #include "vec.h"
 #include "mesh.h"
 
-
-class btCollisionShape;
 
 class Block {
 public:
@@ -24,34 +23,49 @@ public:
     
     std::shared_ptr<Mesh> inner;
 
-    // Collision shape блока (flyweight). Один и тот же shared_ptr
-    // переиспользуется всеми блоками данного типа. Форма задаётся в
-    // локальных координатах блока и центрируется в (x+0.5, y+0.5, z+0.5).
-    // nullptr означает, что блок не участвует в коллизиях.
-    std::shared_ptr<btCollisionShape> collision;
+    // Данные для физики. Mesh выше — только графика; collision_mesh —
+    // отдельный набор AABB, который читает физический движок. Геометрия
+    // может быть построена из того же меша (CollisionMesh::from_mesh),
+    // но назначение у этих данных разное.
+    // Один shared_ptr переиспользуется всеми блоками типа (flyweight).
+    // nullptr/пустой меш означает, что блок не участвует в коллизиях.
+    std::shared_ptr<CollisionMesh> collision_mesh;
     
     Block();
     Block(uint16_t id, const std::string& name);
 
-    void set_collision_shape(std::shared_ptr<btCollisionShape> shape) {
-        collision = std::move(shape);
+    void set_collision_mesh(std::shared_ptr<CollisionMesh> mesh) {
+        collision_mesh = std::move(mesh);
     }
 
-    // NBT передаётся в shape-аксессоры, чтобы наследники могли менять
+    void set_collision_box(const Vec3f& min, const Vec3f& max) {
+        collision_mesh = CollisionMesh::box(min, max);
+    }
+
+    // NBT передаётся в аксессоры, чтобы наследники могли менять
     // коллизию в зависимости от состояния конкретной клетки.
-    virtual std::shared_ptr<btCollisionShape> get_collision_shape(
+    virtual std::shared_ptr<CollisionMesh> get_collision_mesh(
         uint16_t nbt = 0) const {
         (void)nbt;
-        return collision;
+        return collision_mesh;
     }
 
-    void clear_collision_shape() {
-        collision.reset();
+    void clear_collision_mesh() {
+        collision_mesh.reset();
     }
 
     virtual bool has_collision(uint16_t nbt = 0) const {
-        (void)nbt;
-        return collision != nullptr;
+        std::shared_ptr<CollisionMesh> mesh = get_collision_mesh(nbt);
+        return mesh && mesh->physics_used() && !mesh->empty();
+    }
+
+    // Построить collision-меш из визуального меша блока. Это основной
+    // сценарий задачи 6: геометрия остаётся той же, но физика использует
+    // отдельный экземпляр CollisionMesh.
+    void build_collision_mesh_from_inner() {
+        if (inner) {
+            collision_mesh = CollisionMesh::from_mesh(*inner);
+        }
     }
     
     // Колбэки получают NBT и возвращают, возможно изменённое, значение.
@@ -131,9 +145,10 @@ public:
         return barrier_block;
     }
 
-    // Общая форма-куб для блоков, у которых не задана собственная collision shape.
-    std::shared_ptr<btCollisionShape> get_default_collision_shape() const {
-        return default_collision_shape;
+    // Общий collision-меш-куб для блоков, у которых не задана собственная
+    // физическая геометрия.
+    std::shared_ptr<CollisionMesh> get_default_collision_mesh() const {
+        return default_collision_mesh;
     }
 
     // Эмиссия блока без создания shared_ptr — для горячих циклов освещения.
@@ -153,6 +168,6 @@ public:
 
 private:
     std::vector<std::shared_ptr<Block>> blocks;
-    std::shared_ptr<btCollisionShape> default_collision_shape;
+    std::shared_ptr<CollisionMesh> default_collision_mesh;
     std::shared_ptr<Block> barrier_block;
 };

@@ -30,18 +30,6 @@ find_package(pybind11 REQUIRED)
 find_package(glfw3 REQUIRED)
 
 # ============================================================================
-# Bullet Physics
-# ============================================================================
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(BULLET QUIET bullet)
-endif()
-
-if(NOT BULLET_FOUND)
-    find_package(Bullet REQUIRED)
-endif()
-
-# ============================================================================
 # GLAD (загрузчик OpenGL)
 # ============================================================================
 add_library(glad STATIC glad/src/glad.c)
@@ -83,14 +71,13 @@ add_library(core SHARED
     src/light_engine.cpp
     src/world.cpp
     src/raycast.cpp
-    src/voxel_collision_shape.cpp
-    src/physics_world.cpp
+    src/collision.cpp
     src/input.cpp
 )
-target_include_directories(core PUBLIC include ${BULLET_INCLUDE_DIRS})
+target_include_directories(core PUBLIC include)
 # src/input.cpp использует GLFW (glfwGetKey и т.д.), поэтому core линкуется с glfw,
 # иначе при импорте модулей возникает "undefined symbol: glfwGetKey"
-target_link_libraries(core PUBLIC vec glfw ${BULLET_LIBRARIES})
+target_link_libraries(core PUBLIC vec glfw)
 set_target_properties(core PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${LIB_OUTPUT_DIR}
     POSITION_INDEPENDENT_CODE ON
@@ -118,22 +105,6 @@ set_target_properties(entity_module PROPERTIES
 pybind11_add_module(view_cam_module bindings/view_cam_pybind.cpp)
 target_link_libraries(view_cam_module PRIVATE core)
 set_target_properties(view_cam_module PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
-    INSTALL_RPATH "$ORIGIN/../lib"
-    BUILD_WITH_INSTALL_RPATH TRUE
-)
-
-pybind11_add_module(bullet_module bindings/bullet_pybind.cpp)
-target_link_libraries(bullet_module PRIVATE core)
-set_target_properties(bullet_module PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
-    INSTALL_RPATH "$ORIGIN/../lib"
-    BUILD_WITH_INSTALL_RPATH TRUE
-)
-
-pybind11_add_module(voxel_collision_shape_module bindings/voxel_collision_shape_pybind.cpp)
-target_link_libraries(voxel_collision_shape_module PRIVATE core)
-set_target_properties(voxel_collision_shape_module PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
     INSTALL_RPATH "$ORIGIN/../lib"
     BUILD_WITH_INSTALL_RPATH TRUE
@@ -203,9 +174,9 @@ set_target_properties(world_module PROPERTIES
     BUILD_WITH_INSTALL_RPATH TRUE
 )
 
-pybind11_add_module(physics_module bindings/physics_pybind.cpp)
-target_link_libraries(physics_module PRIVATE core)
-set_target_properties(physics_module PROPERTIES
+pybind11_add_module(collision_module bindings/collision_pybind.cpp)
+target_link_libraries(collision_module PRIVATE core)
+set_target_properties(collision_module PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
     INSTALL_RPATH "$ORIGIN/../lib"
     BUILD_WITH_INSTALL_RPATH TRUE

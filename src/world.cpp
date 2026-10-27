@@ -339,7 +339,6 @@ void World::update_items(float delta_time) {
     }
 
     constexpr float GRAVITY = 20.0f;
-    constexpr float ITEM_RADIUS = 0.25f;
     constexpr float MAX_DELTA = 0.1f;
     const float dt = std::min(delta_time, MAX_DELTA);
 
@@ -356,26 +355,22 @@ void World::update_items(float delta_time) {
             entity->pickup_delay -= dt;
         }
 
-        entity->velocity.y -= GRAVITY * dt;
-        Vec3f next = entity->transform.position + entity->velocity * dt;
+        FragmentCollision& body = entity->collision_body;
 
-        // Простейшее приземление на верхнюю грань блока. Полноценные
-        // коллизии для item-entity появятся после переработки коллизий.
-        Vec3i below(
-            static_cast<int32_t>(std::floor(next.x)),
-            static_cast<int32_t>(std::floor(next.y - ITEM_RADIUS)),
-            static_cast<int32_t>(std::floor(next.z)));
-        uint16_t support_nbt = 0;
-        std::shared_ptr<Block> support = get_block(below, support_nbt);
-        if (support && support->is_solid(support_nbt) &&
-            next.y - ITEM_RADIUS < static_cast<float>(below.y + 1)) {
-            next.y = static_cast<float>(below.y + 1) + ITEM_RADIUS;
-            entity->velocity.y = 0.0f;
-            entity->velocity.x *= 0.75f;
-            entity->velocity.z *= 0.75f;
+        // Внешнее изменение transform (например, телепорт/выброс) должно
+        // сбросить историю интерполяции; обычное движение идёт через body.
+        Vec3f delta = entity->transform.position - body.position;
+        if (delta.length() > 1e-5f) {
+            body.set_position(entity->transform.position);
         }
+        body.velocity = entity->velocity;
 
-        entity->transform.position = next;
+        step_fragment_against_world(
+            *this, body, dt, Vec3f(0.0f, -GRAVITY, 0.0f));
+
+        entity->velocity = body.velocity;
+        entity->transform.position = body.position;
+        entity->render_position = body.get_render_position(0.0f);
     }
 
     item_entities.erase(

@@ -2,8 +2,13 @@
 
 #include <cstdint>
 
+#include "collision.h"
 #include "entity.h"
 #include "view_cam.h"
+
+
+class World;
+class Inventory;
 
 
 // Простая сущность-«болванка» для игрока/камеры.
@@ -16,13 +21,19 @@ public:
     static constexpr float BLOCK_SIZE = 0.5f;
     static constexpr float BODY_RADIUS = 0.6f * BLOCK_SIZE;   // 0.3
     static constexpr float BODY_HEIGHT = 3.6f * BLOCK_SIZE;   // 1.8 (полная высота)
-    // Bullet задаёт высоту только цилиндрической части капсулы.
+    // Высота цилиндрической части старой капсулы. Оставлена для
+    // совместимости; новый движок использует AABB.
     static constexpr float CAPSULE_HEIGHT = BODY_HEIGHT - 2.0f * BODY_RADIUS;
     // Глаза чуть ниже верхушки капсулы.
     static constexpr float EYE_OFFSET = BODY_HEIGHT * 0.5f - 0.15f;
     static constexpr float MAX_PITCH = 1.5f;
 
     ViewCam view;
+
+    // Физическое тело Dummy. Это обычный EntityCollision с AABB
+    // (BODY_RADIUS * 2) x BODY_HEIGHT x (BODY_RADIUS * 2). Его можно
+    // зарегистрировать в CollisionWorld::add_entity(body).
+    EntityCollision body;
 
     // Состояние, которое удобно переключать из теста/игры.
     bool collisions_enabled = true;
@@ -51,12 +62,47 @@ public:
     void sync_view_from_transform();
     void sync_transform_from_view();
 
-    void set_collisions_enabled(bool enabled) { collisions_enabled = enabled; }
-    void set_gravity_enabled(bool enabled) { gravity_enabled = enabled; }
+    // Синхронизация с физическим телом.
+    void sync_body_from_transform();
+    void sync_transform_from_body();
+    // Для Dummy графика отстаёт только по Y камеры: X/Z и поворот берутся
+    // из текущей физической позиции, а Y — из истории интерполяции.
+    void sync_view_from_body(float alpha = 0.0f);
+
+    void set_collisions_enabled(bool enabled) {
+        collisions_enabled = enabled;
+        body.collisions_enabled = enabled;
+    }
+    void set_gravity_enabled(bool enabled) {
+        gravity_enabled = enabled;
+        body.gravity_enabled = enabled;
+    }
     void toggle_physics() {
         collisions_enabled = !collisions_enabled;
         gravity_enabled = !gravity_enabled;
+        body.collisions_enabled = collisions_enabled;
+        body.gravity_enabled = gravity_enabled;
     }
 
     void update(uint32_t tick) override;
+};
+
+
+// Пример триггера, который использует интерфейс Dummy и подбирает
+// предметы, попадающие в его область. Это не физическое препятствие:
+// TriggerCollision только сообщает о вхождении/выхождении.
+class DummyPickupTrigger : public TriggerCollision {
+public:
+    Dummy* dummy = nullptr;
+    World* world = nullptr;
+    Inventory* inventory = nullptr;
+    uint32_t preferred_slot = UINT32_MAX;
+
+    DummyPickupTrigger();
+    DummyPickupTrigger(Dummy& dummy, World& world, Inventory& inventory,
+                       uint32_t preferred_slot = UINT32_MAX,
+                       float radius = 4.0f);
+
+    void sync_bounds();
+    void on_enter(CollisionObject& other) override;
 };

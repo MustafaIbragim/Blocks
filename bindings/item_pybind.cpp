@@ -127,6 +127,13 @@ PYBIND11_MODULE(item_module, m) {
         .def_readwrite("alive", &ItemEntity::alive)
         .def_readwrite("id", &ItemEntity::id)
         .def_readwrite("sprite_size", &ItemEntity::sprite_size)
+        .def_readwrite("render_position", &ItemEntity::render_position)
+        .def_property_readonly(
+            "collision_body",
+            [](ItemEntity& entity) -> FragmentCollision& {
+                return entity.collision_body;
+            },
+            py::return_value_policy::reference_internal)
         .def("can_pickup", &ItemEntity::can_pickup)
         .def("__repr__", [](const ItemEntity& entity) {
             return "ItemEntity(id=" + std::to_string(entity.id) +

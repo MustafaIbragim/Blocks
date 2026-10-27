@@ -1,11 +1,10 @@
 #include "block.h"
 #include <stdexcept>
-#include <BulletCollision/CollisionShapes/btBoxShape.h>
 
 
 Block::Block() 
     : id(0), opacity(0), light(0), status(0),
-      name("air"), inner(nullptr), collision(nullptr) {
+      name("air"), inner(nullptr), collision_mesh(nullptr) {
     for (int i = 0; i < 6; ++i) {
         face_textures[i] = 0;
     }
@@ -13,7 +12,7 @@ Block::Block()
 
 Block::Block(uint16_t id, const std::string& name)
     : id(id), opacity(255), light(0), status(0),
-      name(name), inner(nullptr), collision(nullptr) {
+      name(name), inner(nullptr), collision_mesh(nullptr) {
     for (int i = 0; i < 6; ++i) {
         face_textures[i] = 0;
     }
@@ -40,14 +39,13 @@ std::shared_ptr<Mesh> Block::get_inner_mesh(uint16_t nbt) const {
 }
 
 BlockManager::BlockManager() {
-    default_collision_shape = std::make_shared<btBoxShape>(
-        btVector3(btScalar(0.5), btScalar(0.5), btScalar(0.5)));
-    // Кубы воксельного мира должны совпадать с сеткой без "зазоров" от margin.
-    default_collision_shape->setMargin(btScalar(0.0));
+    // Общий куб [0..1]^3. AABB не имеет margin, поэтому соседние блоки
+    // стыкуются без зазоров и без двойного проникновения.
+    default_collision_mesh = CollisionMesh::unit_cube();
 
     auto air = std::make_shared<Block>(0, "air");
     air->opacity = 0;
-    air->clear_collision_shape();
+    air->clear_collision_mesh();
     blocks.push_back(air);
 
     // Барьер: полностью прозрачный блок без меша, но с коллизией куба.
@@ -60,7 +58,7 @@ BlockManager::BlockManager() {
         barrier_block->face_textures[i] = 0;
     }
     barrier_block->inner = nullptr;             // никакого меша
-    barrier_block->collision = default_collision_shape;  // полноценный куб
+    barrier_block->collision_mesh = default_collision_mesh;  // полноценный куб
 }
 
 uint16_t BlockManager::register_block(std::shared_ptr<Block> block) {
@@ -74,10 +72,11 @@ uint16_t BlockManager::register_block(std::shared_ptr<Block> block) {
     
     uint16_t new_id = static_cast<uint16_t>(blocks.size());
     block->id = new_id;
-    // Flyweight: по умолчанию все зарегистрированные блоки используют одну
-    // общую форму-куб. Собственная форма задаётся через Block::set_collision_shape.
-    if (!block->collision) {
-        block->collision = default_collision_shape;
+    // Flyweight: по умолчанию все зарегистрированные блоки используют один
+    // общий collision-меш-куб. Собственная физическая геометрия задаётся
+    // через Block::set_collision_mesh.
+    if (!block->collision_mesh) {
+        block->collision_mesh = default_collision_mesh;
     }
     blocks.push_back(std::move(block));
     return new_id;

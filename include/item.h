@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "collision.h"
 #include "entity.h"
 #include "image.h"
 #include "vec.h"
@@ -153,6 +154,14 @@ public:
     float pickup_delay = 0.35f;
     bool alive = true;
     uint32_t id = 0;
+
+    // Физика выпавшего предмета: лёгкий фрагмент, который сталкивается
+    // только со статичными блоками и игнорирует сущности.
+    FragmentCollision collision_body;
+
+    // Позиция для графики. Отстаёт от физической на 2 такта и
+    // интерполируется, чтобы спрайты не телепортировались между кадрами.
+    Vec3f render_position;
 
     // Размер спрайта в мировых единицах. Рендерер использует его как
     // половину стороны camera-facing квада.

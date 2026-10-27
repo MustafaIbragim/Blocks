@@ -42,6 +42,11 @@ public:
     bool is_solid(uint16_t nbt) const override {
         PYBIND11_OVERRIDE(bool, Block, is_solid, nbt);
     }
+    std::shared_ptr<CollisionMesh> get_collision_mesh(
+        uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(std::shared_ptr<CollisionMesh>, Block,
+                          get_collision_mesh, nbt);
+    }
     bool has_collision(uint16_t nbt) const override {
         PYBIND11_OVERRIDE(bool, Block, has_collision, nbt);
     }
@@ -67,6 +72,14 @@ PYBIND11_MODULE(block_module, m) {
              py::arg("face"), py::arg("nbt") = 0)
         .def("set_inner_mesh", &Block::set_inner_mesh, py::arg("mesh"))
         .def("get_inner_mesh", &Block::get_inner_mesh, py::arg("nbt") = 0)
+        .def("build_collision_mesh_from_inner",
+             &Block::build_collision_mesh_from_inner,
+             "Строит физический CollisionMesh из визуального inner-меша")
+        .def("get_collision_mesh", &Block::get_collision_mesh,
+             py::arg("nbt") = 0)
+        .def("set_collision_mesh", &Block::set_collision_mesh,
+             py::arg("mesh"))
+        .def("clear_collision_mesh", &Block::clear_collision_mesh)
         .def("is_solid", &Block::is_solid, py::arg("nbt") = 0)
         .def("has_collision", &Block::has_collision, py::arg("nbt") = 0)
         .def("on_place", &Block::on_place, py::arg("pos"), py::arg("nbt") = 0)

@@ -255,11 +255,26 @@ void Inventory::clear() {
 // ItemEntity
 // ============================================================================
 
-ItemEntity::ItemEntity() = default;
+ItemEntity::ItemEntity() {
+    collision_body.set_half_extents(Vec3f(0.2f, 0.2f, 0.2f));
+    collision_body.mass = 0.1f;
+    collision_body.reset_history();
+    render_position = transform.position;
+}
 
 ItemEntity::ItemEntity(const ItemStack& stack,
                        const Vec3f& position,
                        const Vec3f& velocity)
     : stack(stack), velocity(velocity) {
     transform.position = position;
+
+    collision_body.set_half_extents(Vec3f(0.2f, 0.2f, 0.2f));
+    collision_body.position = position;
+    collision_body.velocity = velocity;
+    collision_body.mass = 0.1f;
+    collision_body.gravity_enabled = true;
+    collision_body.collisions_enabled = true;
+    collision_body.reset_history();
+
+    render_position = position;
 }

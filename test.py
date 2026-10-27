@@ -40,7 +40,7 @@ def test_renderer():
     import raycast_module as rc
     import dummy_module as dm
     import camera_module as cam
-    import physics_module as pm
+    import collision_module as pm
     import item_module as items
 
     # ------------------------------------------------------------------
@@ -281,25 +281,19 @@ def test_renderer():
     # Физика: вертикальная капсула Dummy. F6 включает/выключает коллизии
     # и гравитацию.
     # ------------------------------------------------------------------
-    physics = pm.PhysicsWorld()
+    physics = pm.CollisionWorld()
+    physics.set_world(world)
     for cx in range(2):
         for cz in range(2):
             physics.add_chunk(world, vm.Vec2i(cx, cz))
 
-    player_body = physics.add_dynamic_capsule(
-        dm.Dummy.BODY_RADIUS,
-        dm.Dummy.CAPSULE_HEIGHT,
-        70.0,
-        dummy.transform.position,
-    )
-    # Корпус манекена не должен заваливаться: вращаем его только сами, по Y.
-    physics.set_body_angular_factor(player_body, vm.Vec3f(0.0, 0.0, 0.0))
+    # Dummy владеет своим AABB-телом; CollisionWorld лишь регистрирует его.
+    player_body = physics.add_entity(dummy.body)
 
     physics_on = False
-    dummy.collisions_enabled = False
-    dummy.gravity_enabled = False
-    physics.set_body_collisions_enabled(player_body, False)
-    physics.set_body_gravity(player_body, vm.Vec3f(0.0, 0.0, 0.0))
+    dummy.set_collisions_enabled(False)
+    dummy.set_gravity_enabled(False)
+    dummy.body.velocity = vm.Vec3f(0.0, 0.0, 0.0)
 
     move_speed = 8.0
     mouse_sensitivity = 0.003
@@ -372,31 +366,30 @@ def test_renderer():
             vertical -= 1.0
         
         if physics_on:
-            velocity = physics.get_body_linear_velocity(player_body)
-            vertical_velocity = velocity.y
+            vertical_velocity = dummy.body.velocity.y
             if vertical > 0.0:
                 vertical_velocity = 9.5
             elif vertical < 0.0:
                 vertical_velocity = -9.5
 
-            physics.set_body_linear_velocity(player_body, vm.Vec3f(
+            dummy.body.velocity = vm.Vec3f(
                 move.x * move_speed,
                 vertical_velocity,
                 move.z * move_speed,
-            ))
-            physics.step(dt, 1, 1.0 / 60.0)
-            
-            dummy.transform.position = physics.get_body_position(player_body)
+            )
+            physics.step(dt)
+
+            # X/Z камеры идут за физикой без задержки; Y отстаёт на 2 такта.
+            dummy.sync_view_from_body(0.0)
         else:
             dummy.transform.position.x += move.x * move_speed * dt
             dummy.transform.position.y += vertical * move_speed * dt
             dummy.transform.position.z += move.z * move_speed * dt
 
             # Держим физическое тело в позиции Dummy, пока физика выключена.
-            physics.set_body_position(player_body, dummy.transform.position)
-            physics.set_body_linear_velocity(player_body, vm.Vec3f(0.0, 0.0, 0.0))
-
-        dummy.sync_view_from_transform()
+            dummy.sync_body_from_transform()
+            dummy.body.velocity = vm.Vec3f(0.0, 0.0, 0.0)
+            dummy.sync_view_from_transform()
 
         # --- Обязательное тактовое обновление мира ---
         # Свет обновляется не чаще 20 Гц, затем автоматически пересобираются
@@ -473,17 +466,11 @@ def test_renderer():
         # --- F6: коллизии и гравитация ---
         if input_mgr.is_key_just_pressed(GLFW_KEY_F6):
             physics_on = not physics_on
-            dummy.collisions_enabled = physics_on
-            dummy.gravity_enabled = physics_on
-
-            physics.set_body_collisions_enabled(player_body, physics_on)
-            physics.set_body_gravity(
-                player_body,
-                vm.Vec3f(0.0, -28.0, 0.0) if physics_on
-                else vm.Vec3f(0.0, 0.0, 0.0),
-            )
+            dummy.set_collisions_enabled(physics_on)
+            dummy.set_gravity_enabled(physics_on)
             if physics_on:
-                physics.set_body_position(player_body, dummy.transform.position)
+                dummy.body.set_position(dummy.transform.position)
+                dummy.body.velocity = vm.Vec3f(0.0, 0.0, 0.0)
 
             state = "ВКЛ" if physics_on else "ВЫКЛ"
             print(f"\n  Коллизии и гравитация: {state}")
@@ -497,7 +484,7 @@ def test_renderer():
         for entity in world.get_item_entities():
             if not entity.alive or entity.stack.empty():
                 continue
-            pos = entity.transform.position
+            pos = entity.render_position
             item_sprites.append(rm.Sprite(
                 vm.Vec3f(pos.x, pos.y + 0.2, pos.z),
                 entity.sprite_size,
