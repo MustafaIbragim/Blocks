@@ -74,7 +74,9 @@ def test_renderer():
     scratch_world = wm.World(scratch_mgr, tm.TextureBlocksManager(), tm.TextureManager())
     scratch_id = scratch_world.spawn_item_entity(
         items.ItemStack(scratch_item, 3), vm.Vec3f(0.0, 0.0, 0.0))
-    scratch_world.get_item_entity(scratch_id).pickup_delay = 0.0
+    item = scratch_world.get_item_entity(scratch_id)
+    if isinstance(item, items.ItemEntity):
+        item.pickup_delay = 0.0
     assert scratch_world.pickup_item_entity(scratch_id, scratch_inv, 0)
     assert scratch_inv.get_slot(0).count == 8
     print("  [OK] Предметы: стак возвращается в предпочтительный слот")
