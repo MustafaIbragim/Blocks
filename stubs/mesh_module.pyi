@@ -27,8 +27,7 @@ class Mesh:
 
     def clear(self) -> None: ...
 
-    @property
-    def light_revision(self) -> int: ...
+    light_revision: int
 
     def vertex_light(self, index: int) -> int: ...
 
