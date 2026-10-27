@@ -21,6 +21,7 @@ private:
         const Chunk& chunk,
         uint8_t x, uint16_t y, uint8_t z,
         const Block& block,
+        uint16_t nbt,
         const BlockManager& block_mgr,
         const TextureBlocksManager& tex_blocks_mgr
     );

@@ -265,7 +265,8 @@ uint8_t LightEngine::emission(const Chunk& chunk, uint32_t index) const {
     uint16_t id = nugget.block_ids[
         x + (y % ChunkNugget::SIZE) * ChunkNugget::SIZE +
         z * ChunkNugget::SIZE * ChunkNugget::SIZE];
-    return world.get_block_mgr().get_light(id);
+    const Block* block = world.get_block_mgr().get_block_raw(id);
+    return block ? block->light : 0;
 }
 
 uint8_t LightEngine::compute_light_fast(const Chunk& chunk, uint32_t index) const {
@@ -430,14 +431,16 @@ void LightEngine::mark_chunk_sources(Chunk& chunk) {
         for (uint16_t i = 0; i < ChunkNugget::BLOCKS_COUNT; ++i) {
             uint16_t id = nugget.block_ids[i];
             if (id == 0) continue;
-            if (block_mgr.get_light(id) == 0) continue;
+
+            const Block* block = block_mgr.get_block_raw(id);
+            if (!block || block->light == 0) continue;
 
             Vec3i lc = ChunkNugget::index_to_coords(i);
             uint32_t index = Chunk::coords_to_global_index(
                 static_cast<uint8_t>(lc.x),
                 static_cast<uint16_t>(base_y + lc.y),
                 static_cast<uint8_t>(lc.z));
-            schedule_light(chunk, index, block_mgr.get_light(id));
+            schedule_light(chunk, index, block->light);
         }
     }
 }

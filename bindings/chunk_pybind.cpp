@@ -23,6 +23,14 @@ PYBIND11_MODULE(chunk_module, m) {
         
         .def("get_block_id", &ChunkNugget::get_block_id, py::arg("x"), py::arg("y"), py::arg("z"))
         .def("set_block_id", &ChunkNugget::set_block_id, py::arg("x"), py::arg("y"), py::arg("z"), py::arg("id"))
+
+        // --- NBT: обычное 16-битное число на клетку ---
+        .def("get_nbt", static_cast<uint16_t (ChunkNugget::*)(uint8_t, uint8_t, uint8_t) const>(&ChunkNugget::get_nbt),
+             py::arg("x"), py::arg("y"), py::arg("z"))
+        .def("set_nbt", static_cast<void (ChunkNugget::*)(uint8_t, uint8_t, uint8_t, uint16_t)>(&ChunkNugget::set_nbt),
+             py::arg("x"), py::arg("y"), py::arg("z"), py::arg("nbt"))
+        .def("get_nbt_by_index", &ChunkNugget::get_nbt_by_index, py::arg("index"))
+        .def("set_nbt_by_index", &ChunkNugget::set_nbt_by_index, py::arg("index"), py::arg("nbt"))
         
         .def("get_block", static_cast<std::shared_ptr<Block> (ChunkNugget::*)(uint8_t, uint8_t, uint8_t, const BlockManager&) const>(&ChunkNugget::get_block),
              py::arg("x"), py::arg("y"), py::arg("z"), py::arg("block_mgr"))
@@ -47,6 +55,14 @@ PYBIND11_MODULE(chunk_module, m) {
                 {ChunkNugget::BLOCKS_COUNT},
                 {sizeof(uint16_t)},
                 self.block_ids.data(),
+                py::capsule(&self)
+            );
+        })
+        .def_property_readonly("nbt_data_np", [](ChunkNugget& self) {
+            return py::array_t<uint16_t>(
+                {ChunkNugget::BLOCKS_COUNT},
+                {sizeof(uint16_t)},
+                self.nbt_data.data(),
                 py::capsule(&self)
             );
         })
@@ -81,6 +97,16 @@ PYBIND11_MODULE(chunk_module, m) {
              py::arg("x"), py::arg("y"), py::arg("z"), py::arg("block"))
         .def("set_block", static_cast<void (Chunk::*)(const Vec3i&, std::shared_ptr<Block>)>(&Chunk::set_block),
              py::arg("pos"), py::arg("block"))
+
+        // --- NBT ---
+        .def("get_nbt", static_cast<uint16_t (Chunk::*)(uint8_t, uint16_t, uint8_t) const>(&Chunk::get_nbt),
+             py::arg("x"), py::arg("y"), py::arg("z"))
+        .def("set_nbt", static_cast<void (Chunk::*)(uint8_t, uint16_t, uint8_t, uint16_t)>(&Chunk::set_nbt),
+             py::arg("x"), py::arg("y"), py::arg("z"), py::arg("nbt"))
+        .def("get_nbt", static_cast<uint16_t (Chunk::*)(const Vec3i&) const>(&Chunk::get_nbt),
+             py::arg("pos"))
+        .def("set_nbt", static_cast<void (Chunk::*)(const Vec3i&, uint16_t)>(&Chunk::set_nbt),
+             py::arg("pos"), py::arg("nbt"))
         
         .def("get_opacity", &Chunk::get_opacity, py::arg("x"), py::arg("y"), py::arg("z"))
         .def("set_opacity", &Chunk::set_opacity, py::arg("x"), py::arg("y"), py::arg("z"), py::arg("value"))
@@ -136,5 +162,3 @@ PYBIND11_MODULE(chunk_module, m) {
                    std::to_string(c.chunk_xz.y) + "))";
         });
 }
-
-

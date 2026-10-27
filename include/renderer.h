@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <memory>
+#include <vector>
 #include "vec.h"
 #include "mesh.h"
 #include "world.h"
@@ -17,6 +18,15 @@ struct GPUFaceAttr {
     float u, v;
     int32_t layer;
     uint32_t anim_data;
+};
+
+
+// Camera-facing quad с обычной 2D-текстурой. Используется для иконок
+// выброшенных предметов, счётчиков количества и будущих простых сущностей.
+struct Sprite {
+    Vec3f position;
+    float size = 0.5f;
+    uint32_t texture_id = 0;
 };
 
 
@@ -36,6 +46,15 @@ public:
     void remove_mesh(uint32_t mesh_id);
     
     void render(uint64_t current_tick, const ViewCam& camera, float min_light);
+
+    // Рисует набор спрайтов после основного прохода. Текстуры должны быть
+    // загружены заранее через upload_texture(texture_id, image).
+    void render_sprites(const std::vector<Sprite>& sprites, const ViewCam& camera);
+
+    // Рисует 2D-текстуру в экранных координатах (пиксели, начало — левый
+    // нижний угол). Используется для HUD: иконка предмета и количество.
+    void render_screen_texture(uint32_t texture_id, float x, float y,
+                               float w, float h);
     
     bool should_close() const;
     void poll_events();
@@ -54,6 +73,10 @@ private:
     uint32_t block_shader_program;
     uint32_t entity_shader_program;
     uint32_t block_texture_array_id;
+    uint32_t sprite_vao;
+    uint32_t sprite_vbo;
+    uint32_t hud_vao;
+    uint32_t hud_vbo;
     
     struct GPUMesh {
         uint32_t vao, vbo, fbo; // fbo — буфер данных граней (uv/layer/anim)
@@ -65,6 +88,8 @@ private:
     void compile_shaders();
     void setup_opengl_state();
     uint32_t compile_shader(uint32_t type, const std::string& source);
+    void compute_camera_matrices(const ViewCam& camera, float view[16],
+                                 float proj[16]) const;
 };
 
 

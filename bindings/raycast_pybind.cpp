@@ -25,6 +25,7 @@ PYBIND11_MODULE(raycast_module, m) {
         .def_readonly("hit", &RaycastHit::hit)
         .def_readonly("block", &RaycastHit::block)
         .def_readonly("normal", &RaycastHit::normal)
+        .def_readonly("nbt", &RaycastHit::nbt)
         .def_readonly("distance", &RaycastHit::distance)
         .def("__bool__", [](const RaycastHit& hit) { return hit.hit; })
         .def("__repr__", [](const RaycastHit& hit) {

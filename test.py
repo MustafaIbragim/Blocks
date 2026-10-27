@@ -16,6 +16,8 @@ GLFW_KEY_SPACE = 32
 GLFW_KEY_LEFT_SHIFT = 340
 GLFW_KEY_ESCAPE = 256
 GLFW_KEY_U = 85
+GLFW_KEY_Q = 81
+GLFW_KEY_E = 69
 GLFW_KEY_F6 = 295
 
 MOUSE_BUTTON_LEFT = 0
@@ -39,6 +41,43 @@ def test_renderer():
     import dummy_module as dm
     import camera_module as cam
     import physics_module as pm
+    import item_module as items
+
+    # ------------------------------------------------------------------
+    # Быстрые проверки хранилища: NBT как uint16, обратная запись из блока
+    # ------------------------------------------------------------------
+    scratch_chunk = cm.Chunk()
+    scratch_chunk.set_nbt(0, 0, 0, 0xABCD)
+    assert scratch_chunk.get_nbt(0, 0, 0) == 0xABCD
+    scratch_chunk.nuggets[0].set_nbt_by_index(1, 0x1234)
+    assert scratch_chunk.nuggets[0].get_nbt_by_index(1) == 0x1234
+
+    class NbtTickBlock(bm.Block):
+        def on_tick(self, pos, tick, nbt):
+            return (nbt + 1) & 0xFFFF
+
+    nbt_mgr = bm.BlockManager()
+    nbt_block = NbtTickBlock(0, "nbt_tick_test")
+    nbt_block.id = nbt_mgr.register_block(nbt_block)
+    nbt_chunk = cm.Chunk()
+    nbt_chunk.set_block(0, 0, 0, nbt_block)
+    nbt_chunk.set_nbt(0, 0, 0, 41)
+    nbt_chunk.nuggets[0].add_tick_block(0)
+    nbt_chunk.tick_all(1, nbt_mgr)
+    assert nbt_chunk.get_nbt(0, 0, 0) == 42
+    print("  [OK] NBT: uint16 хранится в чанке и меняется самим блоком")
+
+    scratch_mgr = bm.BlockManager()
+    scratch_item = items.Item("scratch", None, 64)
+    scratch_inv = items.Inventory(2)
+    scratch_inv.set_slot(0, items.ItemStack(scratch_item, 5))
+    scratch_world = wm.World(scratch_mgr, tm.TextureBlocksManager(), tm.TextureManager())
+    scratch_id = scratch_world.spawn_item_entity(
+        items.ItemStack(scratch_item, 3), vm.Vec3f(0.0, 0.0, 0.0))
+    scratch_world.get_item_entity(scratch_id).pickup_delay = 0.0
+    assert scratch_world.pickup_item_entity(scratch_id, scratch_inv, 0)
+    assert scratch_inv.get_slot(0).count == 8
+    print("  [OK] Предметы: стак возвращается в предпочтительный слот")
 
     # ------------------------------------------------------------------
     # Мир, блоки, текстуры
@@ -102,6 +141,67 @@ def test_renderer():
         light_block.set_face_texture(i, light_block_tex_id)
 
     # ------------------------------------------------------------------
+    # Предмет: иконка, стак в инвентаре и HUD-текстуры цифр
+    # ------------------------------------------------------------------
+    ITEM_TEXTURE_ID = 100
+    COUNT_TEXTURE_BASE = 10000
+
+    # 16x16 иконка «камня»: светлая рамка и тёмная внутренняя часть.
+    item_image = img_module.Image(16, 16)
+    for py in range(16):
+        for px in range(16):
+            edge = px in (0, 15) or py in (0, 15)
+            if edge:
+                color = vm.Vec4u8(245, 245, 235, 255)
+            else:
+                shade = 12 if (px + py) % 5 == 0 else 0
+                color = vm.Vec4u8(120 + shade, 128 + shade, 138 + shade, 255)
+            item_image.set_pixel(px, py, color)
+
+    stone_item = items.Item("stone", item_image, 64)
+    stone_item.block = dirt
+
+    player_inventory = items.Inventory(9)
+    player_inventory.set_slot(0, items.ItemStack(stone_item, 16))
+
+    DIGIT_GLYPHS = {
+        "0": ("111", "101", "101", "101", "111"),
+        "1": ("010", "110", "010", "010", "111"),
+        "2": ("111", "001", "111", "100", "111"),
+        "3": ("111", "001", "111", "001", "111"),
+        "4": ("101", "101", "111", "001", "001"),
+        "5": ("111", "100", "111", "001", "111"),
+        "6": ("111", "100", "111", "101", "111"),
+        "7": ("111", "001", "001", "001", "001"),
+        "8": ("111", "101", "111", "101", "111"),
+        "9": ("111", "101", "111", "001", "111"),
+    }
+    count_texture_cache = {}
+
+    def make_count_image(count):
+        text = str(count)
+        width = len(text) * 4 - 1
+        image = img_module.Image(width, 5)
+        image.fill(vm.Vec4u8(0, 0, 0, 0))
+        for char_index, char in enumerate(text):
+            glyph = DIGIT_GLYPHS[char]
+            x_offset = char_index * 4
+            for row, line in enumerate(glyph):
+                for col, bit in enumerate(line):
+                    if bit == "1":
+                        image.set_pixel(x_offset + col, row,
+                                        vm.Vec4u8(255, 255, 255, 255))
+        return image
+
+    def count_texture(renderer, count):
+        if count not in count_texture_cache:
+            texture_id = COUNT_TEXTURE_BASE + count
+            image = make_count_image(count)
+            renderer.upload_texture(texture_id, image)
+            count_texture_cache[count] = (texture_id, image.width, image.height)
+        return count_texture_cache[count]
+
+    # ------------------------------------------------------------------
     # Чанки и рельеф
     # ------------------------------------------------------------------
     world = wm.World(block_mgr, tex_blocks_mgr, tex_mgr)
@@ -109,6 +209,10 @@ def test_renderer():
     world.set_chunk(vm.Vec2i(1, 0), cm.Chunk(vm.Vec2i(1, 0)))
     world.set_chunk(vm.Vec2i(0, 1), cm.Chunk(vm.Vec2i(0, 1)))
     world.set_chunk(vm.Vec2i(1, 1), cm.Chunk(vm.Vec2i(1, 1)))
+
+    world.set_nbt(vm.Vec3i(0, 15, 0), 0xBEEF)
+    assert world.get_nbt(vm.Vec3i(0, 15, 0)) == 0xBEEF
+    print("  [OK] NBT: доступен через World без отдельного класса")
 
     for x in range(40):
         for z in range(40):
@@ -138,6 +242,7 @@ def test_renderer():
     renderer = rm.Renderer()
     renderer.init(800, 600, "Voxel Engine - Camera/Dummy + Raycast")
     renderer.upload_block_textures(tex_blocks_mgr)
+    renderer.upload_texture(ITEM_TEXTURE_ID, item_image)
 
     def chunk_mesh_id(chunk_pos):
         return int(chunk_pos.x) * 2 + int(chunk_pos.y) + 1
@@ -206,6 +311,8 @@ def test_renderer():
     print("  мышь X — поворот корпуса по Y, мышь Y — обзор (pitch)")
     print("  ЛКМ — сломать блок, ПКМ — поставить блок")
     print("  U — сменить устанавливаемый блок (dirt / light_block)")
+    print("  Q — выбросить один предмет из слота 0")
+    print("  E — подобрать ближайший предмет в слот 0")
     print("  F6 — включить/выключить коллизии и гравитацию")
     print("  ESC — выход\n")
 
@@ -337,6 +444,32 @@ def test_renderer():
             selected_block = light_block if selected_is_light else dirt
             print(f"\n  Устанавливаемый блок: {selected_block.name}")
 
+        # --- Q: выбросить один предмет из слота 0 ---
+        if input_mgr.is_key_just_pressed(GLFW_KEY_Q):
+            slot = player_inventory.get_slot(0)
+            if slot.empty() or not slot.same_item(items.ItemStack(stone_item, 1)):
+                print("\n  Слот 0 пуст — нечего выбрасывать")
+            else:
+                dropped = player_inventory.take(0, 1)
+                forward = directions.create_forward()
+                drop_pos = dummy.view.position + forward * 0.9
+                entity_id = world.spawn_item_entity(
+                    dropped, drop_pos, forward * 1.5)
+                # В тесте предмет можно подобрать сразу, без задержки.
+                entity = world.get_item_entity(entity_id)
+                if entity is not None:
+                    entity.pickup_delay = 0.0
+                print(f"\n  Выброшен предмет: осталось {player_inventory.get_slot(0).count}")
+
+        # --- E: подобрать ближайший предмет обратно в слот 0 ---
+        if input_mgr.is_key_just_pressed(GLFW_KEY_E):
+            pickup_origin = dummy.transform.position + vm.Vec3f(0.0, 0.5, 0.0)
+            if world.pickup_nearest_item(pickup_origin, 4.0, player_inventory, 0):
+                print(f"\n  Предмет подобран: в слоте 0 теперь "
+                      f"{player_inventory.get_slot(0).count}")
+            else:
+                print("\n  Рядом нет предметов для подбора")
+
         # --- F6: коллизии и гравитация ---
         if input_mgr.is_key_just_pressed(GLFW_KEY_F6):
             physics_on = not physics_on
@@ -358,6 +491,29 @@ def test_renderer():
         # --- Рендер ---
         camera.set_view(dummy.view)
         camera.render(tick, 0.1)
+
+        # Спрайты выброшенных предметов.
+        item_sprites = []
+        for entity in world.get_item_entities():
+            if not entity.alive or entity.stack.empty():
+                continue
+            pos = entity.transform.position
+            item_sprites.append(rm.Sprite(
+                vm.Vec3f(pos.x, pos.y + 0.2, pos.z),
+                entity.sprite_size,
+                ITEM_TEXTURE_ID,
+            ))
+        renderer.render_sprites(item_sprites, dummy.view)
+
+        # HUD: иконка предмета в слоте 0 и его количество в левом нижнем углу.
+        slot = player_inventory.get_slot(0)
+        if not slot.empty():
+            renderer.render_screen_texture(ITEM_TEXTURE_ID, 12.0, 12.0, 48.0, 48.0)
+            texture_id, texture_w, texture_h = count_texture(renderer, slot.count)
+            renderer.render_screen_texture(
+                texture_id, 66.0, 18.0,
+                float(texture_w) * 6.0, float(texture_h) * 6.0)
+
         renderer.swap_buffers()
 
         tick += 1

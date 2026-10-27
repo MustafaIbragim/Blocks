@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <iterator>
 #include <vector>
 
 
@@ -14,7 +15,11 @@ Renderer::Renderer()
     , height(0)
     , block_shader_program(0)
     , entity_shader_program(0)
-    , block_texture_array_id(0) 
+    , block_texture_array_id(0)
+    , sprite_vao(0)
+    , sprite_vbo(0)
+    , hud_vao(0)
+    , hud_vbo(0)
 {}
 
 Renderer::~Renderer() {
@@ -69,6 +74,23 @@ void Renderer::cleanup() {
         if (block_texture_array_id) {
             glDeleteTextures(1, &block_texture_array_id);
             block_texture_array_id = 0;
+        }
+
+        if (sprite_vbo) {
+            glDeleteBuffers(1, &sprite_vbo);
+            sprite_vbo = 0;
+        }
+        if (sprite_vao) {
+            glDeleteVertexArrays(1, &sprite_vao);
+            sprite_vao = 0;
+        }
+        if (hud_vbo) {
+            glDeleteBuffers(1, &hud_vbo);
+            hud_vbo = 0;
+        }
+        if (hud_vao) {
+            glDeleteVertexArrays(1, &hud_vao);
+            hud_vao = 0;
         }
         
         // Удаляем шейдеры
@@ -286,6 +308,8 @@ void Renderer::upload_texture(uint32_t texture_id, const Image& img) {
     
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     
     entity_textures[texture_id] = tex_id;
 }
@@ -386,55 +410,237 @@ void Renderer::render(uint64_t current_tick, const ViewCam& camera, float min_li
     if (block_shader_program == 0 || block_meshes.empty()) return;
     
     glUseProgram(block_shader_program);
-    
-    float yaw = camera.rotation.x;
-    float pitch = camera.rotation.y;
-    
-    Vec3f front;
-    front.x = std::cos(yaw) * std::cos(pitch);
-    front.y = std::sin(pitch);
-    front.z = std::sin(yaw) * std::cos(pitch);
-    front = front.normalized();
-    
-    Vec3f up(0.0f, 1.0f, 0.0f);
-    Vec3f target = camera.position + front;
-    
-    Vec3f z_axis = (camera.position - target).normalized();
-    Vec3f x_axis = up.cross(z_axis).normalized();
-    Vec3f y_axis = z_axis.cross(x_axis);
-    
-    float view[16] = {
-        x_axis.x, y_axis.x, z_axis.x, 0.0f,
-        x_axis.y, y_axis.y, z_axis.y, 0.0f,
-        x_axis.z, y_axis.z, z_axis.z, 0.0f,
-        -x_axis.dot(camera.position), -y_axis.dot(camera.position), -z_axis.dot(camera.position), 1.0f
-    };
-    
-    float aspect = static_cast<float>(width) / static_cast<float>(height);
-    float tan_half_fov = std::tan(camera.fov * 0.5f * 3.14159265f / 180.0f);
-    
-    float proj[16] = {
-        1.0f / (aspect * tan_half_fov), 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f / tan_half_fov, 0.0f, 0.0f,
-        0.0f, 0.0f, -(camera.far_plane + camera.near_plane) / (camera.far_plane - camera.near_plane), -1.0f,
-        0.0f, 0.0f, -(2.0f * camera.far_plane * camera.near_plane) / (camera.far_plane - camera.near_plane), 0.0f
-    };
+
+    float view[16];
+    float proj[16];
+    compute_camera_matrices(camera, view, proj);
     
     glUniformMatrix4fv(glGetUniformLocation(block_shader_program, "uView"), 1, GL_FALSE, view);
     glUniformMatrix4fv(glGetUniformLocation(block_shader_program, "uProjection"), 1, GL_FALSE, proj);
     glUniform1ui(glGetUniformLocation(block_shader_program, "uCurrentTick"), static_cast<uint32_t>(current_tick));
     glUniform1f(glGetUniformLocation(block_shader_program, "u_min_light"), min_light);
-    
+
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, block_texture_array_id);
     glUniform1i(glGetUniformLocation(block_shader_program, "uTextureArray"), 0);
-    
+
     for (auto& [mesh_id, gpu_mesh] : block_meshes) {
         glBindVertexArray(gpu_mesh.vao);
         glDrawArrays(GL_TRIANGLES, 0, gpu_mesh.vertex_count);
     }
-    
+
     glBindVertexArray(0);
+}
+
+void Renderer::compute_camera_matrices(const ViewCam& camera, float view[16],
+                                       float proj[16]) const {
+    const float yaw = camera.rotation.x;
+    const float pitch = camera.rotation.y;
+
+    Vec3f front;
+    front.x = std::cos(yaw) * std::cos(pitch);
+    front.y = std::sin(pitch);
+    front.z = std::sin(yaw) * std::cos(pitch);
+    front = front.normalized();
+
+    const Vec3f up(0.0f, 1.0f, 0.0f);
+    const Vec3f target = camera.position + front;
+
+    const Vec3f z_axis = (camera.position - target).normalized();
+    const Vec3f x_axis = up.cross(z_axis).normalized();
+    const Vec3f y_axis = z_axis.cross(x_axis);
+
+    const float view_values[16] = {
+        x_axis.x, y_axis.x, z_axis.x, 0.0f,
+        x_axis.y, y_axis.y, z_axis.y, 0.0f,
+        x_axis.z, y_axis.z, z_axis.z, 0.0f,
+        -x_axis.dot(camera.position), -y_axis.dot(camera.position),
+        -z_axis.dot(camera.position), 1.0f
+    };
+    std::copy(std::begin(view_values), std::end(view_values), view);
+
+    const float aspect = static_cast<float>(width) /
+                         static_cast<float>(height > 0 ? height : 1);
+    const float tan_half_fov =
+        std::tan(camera.fov * 0.5f * 3.14159265f / 180.0f);
+
+    const float proj_values[16] = {
+        1.0f / (aspect * tan_half_fov), 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f / tan_half_fov, 0.0f, 0.0f,
+        0.0f, 0.0f, -(camera.far_plane + camera.near_plane) /
+                     (camera.far_plane - camera.near_plane), -1.0f,
+        0.0f, 0.0f, -(2.0f * camera.far_plane * camera.near_plane) /
+                     (camera.far_plane - camera.near_plane), 0.0f
+    };
+    std::copy(std::begin(proj_values), std::end(proj_values), proj);
+}
+
+void Renderer::render_sprites(const std::vector<Sprite>& sprites,
+                              const ViewCam& camera) {
+    if (sprites.empty() || entity_shader_program == 0 || window == nullptr) {
+        return;
+    }
+
+    float view[16];
+    float proj[16];
+    compute_camera_matrices(camera, view, proj);
+
+    if (sprite_vao == 0) {
+        glGenVertexArrays(1, &sprite_vao);
+        glGenBuffers(1, &sprite_vbo);
+        glBindVertexArray(sprite_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, sprite_vbo);
+        glBufferData(GL_ARRAY_BUFFER, 6 * 5 * sizeof(float), nullptr,
+                     GL_DYNAMIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                              (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                              (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+        glBindVertexArray(0);
+    }
+
+    // Те же оси, что и в view-матрице: спрайт всегда смотрит в камеру.
+    const float yaw = camera.rotation.x;
+    const float pitch = camera.rotation.y;
+    Vec3f front(
+        std::cos(yaw) * std::cos(pitch),
+        std::sin(pitch),
+        std::sin(yaw) * std::cos(pitch));
+    front = front.normalized();
+
+    const Vec3f up(0.0f, 1.0f, 0.0f);
+    const Vec3f z_axis = (camera.position - (camera.position + front)).normalized();
+    const Vec3f right = up.cross(z_axis).normalized();
+    const Vec3f cam_up = z_axis.cross(right);
+
+    glUseProgram(entity_shader_program);
+    glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uView"),
+                       1, GL_FALSE, view);
+    glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uProjection"),
+                       1, GL_FALSE, proj);
+    glUniform1i(glGetUniformLocation(entity_shader_program, "uTexture"), 0);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_CULL_FACE);
+    glDepthMask(GL_FALSE);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(sprite_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, sprite_vbo);
+
+    for (const Sprite& sprite : sprites) {
+        auto texture_it = entity_textures.find(sprite.texture_id);
+        if (texture_it == entity_textures.end()) {
+            continue;
+        }
+
+        const Vec3f r = right * sprite.size;
+        const Vec3f u = cam_up * sprite.size;
+        const Vec3f c = sprite.position;
+
+        const Vec3f bl = c - r - u;
+        const Vec3f br = c + r - u;
+        const Vec3f tr = c + r + u;
+        const Vec3f tl = c - r + u;
+
+        // Данные Image читаются сверху вниз, поэтому верх квада берёт v=0.
+        const float vertices[6 * 5] = {
+            bl.x, bl.y, bl.z, 0.0f, 1.0f,
+            br.x, br.y, br.z, 1.0f, 1.0f,
+            tr.x, tr.y, tr.z, 1.0f, 0.0f,
+            bl.x, bl.y, bl.z, 0.0f, 1.0f,
+            tr.x, tr.y, tr.z, 1.0f, 0.0f,
+            tl.x, tl.y, tl.z, 0.0f, 0.0f
+        };
+
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+        glBindTexture(GL_TEXTURE_2D, texture_it->second);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+
+    glBindVertexArray(0);
+    glDepthMask(GL_TRUE);
+    glEnable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
+}
+
+void Renderer::render_screen_texture(uint32_t texture_id, float x, float y,
+                                     float w, float h) {
+    if (entity_shader_program == 0 || window == nullptr || width <= 0 ||
+        height <= 0 || w <= 0.0f || h <= 0.0f) {
+        return;
+    }
+
+    auto texture_it = entity_textures.find(texture_id);
+    if (texture_it == entity_textures.end()) {
+        return;
+    }
+
+    if (hud_vao == 0) {
+        glGenVertexArrays(1, &hud_vao);
+        glGenBuffers(1, &hud_vbo);
+        glBindVertexArray(hud_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, hud_vbo);
+        glBufferData(GL_ARRAY_BUFFER, 6 * 5 * sizeof(float), nullptr,
+                     GL_DYNAMIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                              (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+                              (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(1);
+        glBindVertexArray(0);
+    }
+
+    // Пиксели -> NDC. Начало координат — левый нижний угол окна.
+    const float x0 = (x / static_cast<float>(width)) * 2.0f - 1.0f;
+    const float y0 = (y / static_cast<float>(height)) * 2.0f - 1.0f;
+    const float x1 = ((x + w) / static_cast<float>(width)) * 2.0f - 1.0f;
+    const float y1 = ((y + h) / static_cast<float>(height)) * 2.0f - 1.0f;
+
+    // v=0 — верх изображения (данные Image хранятся сверху вниз).
+    const float vertices[6 * 5] = {
+        x0, y0, 0.0f, 0.0f, 1.0f,
+        x1, y0, 0.0f, 1.0f, 1.0f,
+        x1, y1, 0.0f, 1.0f, 0.0f,
+        x0, y0, 0.0f, 0.0f, 1.0f,
+        x1, y1, 0.0f, 1.0f, 0.0f,
+        x0, y1, 0.0f, 0.0f, 0.0f
+    };
+
+    const float identity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+
+    glUseProgram(entity_shader_program);
+    glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uView"),
+                       1, GL_FALSE, identity);
+    glUniformMatrix4fv(glGetUniformLocation(entity_shader_program, "uProjection"),
+                       1, GL_FALSE, identity);
+    glUniform1i(glGetUniformLocation(entity_shader_program, "uTexture"), 0);
+
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_CULL_FACE);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(hud_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, hud_vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+    glBindTexture(GL_TEXTURE_2D, texture_it->second);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    glBindVertexArray(0);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glDisable(GL_BLEND);
 }
 
 bool Renderer::should_close() const {

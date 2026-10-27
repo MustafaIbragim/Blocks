@@ -1,7 +1,5 @@
 #include "chunk.h"
-#include <stdexcept>
 #include <algorithm>
-#include <cstring>
 
 
 // ============================================================================
@@ -11,6 +9,7 @@
 ChunkNugget::ChunkNugget(Chunk* parent, uint8_t y_idx) 
     : parent(parent), local_y_index(y_idx) {
     block_ids.fill(0);
+    nbt_data.fill(0);
 }
 
 uint16_t ChunkNugget::coords_to_index(uint8_t x, uint8_t y, uint8_t z) {
@@ -34,8 +33,42 @@ void ChunkNugget::set_block_id(uint8_t x, uint8_t y, uint8_t z, uint16_t id) {
     block_ids[coords_to_index(x, y, z)] = id;
 }
 
+
+// ============================================================================
+// NBT
+// ============================================================================
+
+uint16_t ChunkNugget::get_nbt(uint8_t x, uint8_t y, uint8_t z) const {
+    if (x >= SIZE || y >= SIZE || z >= SIZE) return 0;
+    return nbt_data[coords_to_index(x, y, z)];
+}
+
+void ChunkNugget::set_nbt(uint8_t x, uint8_t y, uint8_t z, uint16_t nbt) {
+    if (x >= SIZE || y >= SIZE || z >= SIZE) return;
+    nbt_data[coords_to_index(x, y, z)] = nbt;
+}
+
+uint16_t ChunkNugget::get_nbt_by_index(uint16_t index) const {
+    if (index >= BLOCKS_COUNT) return 0;
+    return nbt_data[index];
+}
+
+void ChunkNugget::set_nbt_by_index(uint16_t index, uint16_t nbt) {
+    if (index >= BLOCKS_COUNT) return;
+    nbt_data[index] = nbt;
+}
+
+
+// ============================================================================
+// Блочный доступ
+// ============================================================================
+
 void ChunkNugget::set_block(uint8_t x, uint8_t y, uint8_t z, std::shared_ptr<Block> block) {
-    set_block_id(x, y, z, block ? block->id : 0);
+    const uint16_t id = block ? block->id : 0;
+    if (get_block_id(x, y, z) != id) {
+        set_nbt(x, y, z, 0);
+    }
+    set_block_id(x, y, z, id);
 }
 
 std::shared_ptr<Block> ChunkNugget::get_block(uint8_t x, uint8_t y, uint8_t z, const BlockManager& block_mgr) const {
@@ -81,12 +114,14 @@ void ChunkNugget::tick_all(uint64_t tick, const BlockManager& block_mgr) {
     
     for (uint16_t index : tick_indices) {
         uint16_t id = block_ids[index];
-        if (id != 0) {
-            auto block = block_mgr.get_block(id);
-            Vec3i local = index_to_coords(index);
-            Vec3i world_pos(base_world_x + local.x, base_world_y + local.y, base_world_z + local.z);
-            block->on_tick(world_pos, tick);
-        }
+        if (id == 0) continue;
+
+        const Block* block = block_mgr.get_block_raw(id);
+        if (!block) continue;
+
+        Vec3i local = index_to_coords(index);
+        Vec3i world_pos(base_world_x + local.x, base_world_y + local.y, base_world_z + local.z);
+        nbt_data[index] = block->on_tick(world_pos, tick, nbt_data[index]);
     }
 }
 
@@ -101,12 +136,14 @@ void ChunkNugget::slow_tick(uint64_t global_tick, uint32_t tick_counter, const B
     for (uint64_t i = start; i < slow_tick_indices.size(); i += tick_counter) {
         uint16_t index = slow_tick_indices[i];
         uint16_t id = block_ids[index];
-        if (id != 0) {
-            auto block = block_mgr.get_block(id);
-            Vec3i local = index_to_coords(index);
-            Vec3i world_pos(base_world_x + local.x, base_world_y + local.y, base_world_z + local.z);
-            block->on_slow_tick(world_pos, global_tick);
-        }
+        if (id == 0) continue;
+
+        const Block* block = block_mgr.get_block_raw(id);
+        if (!block) continue;
+
+        Vec3i local = index_to_coords(index);
+        Vec3i world_pos(base_world_x + local.x, base_world_y + local.y, base_world_z + local.z);
+        nbt_data[index] = block->on_slow_tick(world_pos, global_tick, nbt_data[index]);
     }
 }
 
@@ -158,7 +195,9 @@ void Chunk::set_block_id(uint8_t x, uint16_t y, uint8_t z, uint16_t id) {
 }
 
 std::shared_ptr<Block> Chunk::get_block_fast(uint8_t x, uint16_t y, uint8_t z, const BlockManager& block_mgr) const {
-    return block_mgr.get_block(get_block_id(x, y, z));
+    uint8_t nugget_idx = y / ChunkNugget::SIZE;
+    uint8_t local_y = y % ChunkNugget::SIZE;
+    return nuggets[nugget_idx].get_block(x, local_y, z, block_mgr);
 }
 
 // --- Доступ с проверкой границ ---
@@ -201,10 +240,20 @@ std::shared_ptr<Block> Chunk::get_block(const Vec3i& pos, const BlockManager& bl
 }
 
 void Chunk::set_block(uint8_t x, uint16_t y, uint8_t z, std::shared_ptr<Block> block) {
+    uint8_t nugget_idx = y / ChunkNugget::SIZE;
+    uint8_t local_y = y % ChunkNugget::SIZE;
+    ChunkNugget& nugget = nuggets[nugget_idx];
+
     uint32_t global_index = coords_to_global_index(x, y, z);
     uint16_t block_id = block ? block->id : 0;
-    
-    set_block_id(x, y, z, block_id);
+
+    if (nugget.get_block_id(x, local_y, z) != block_id) {
+        // Новая клетка начинает с чистого NBT. Дальше блок (или игровая
+        // логика) вправе распоряжаться этим значением самостоятельно.
+        nugget.set_nbt(x, local_y, z, 0);
+    }
+
+    nugget.set_block_id(x, local_y, z, block_id);
     
     uint8_t opacity = block ? block->opacity : 0;
     opacity_data[global_index] = opacity;
@@ -217,6 +266,30 @@ void Chunk::set_block(uint8_t x, uint16_t y, uint8_t z, std::shared_ptr<Block> b
 
 void Chunk::set_block(const Vec3i& pos, std::shared_ptr<Block> block) {
     set_block(static_cast<uint8_t>(pos.x), static_cast<uint16_t>(pos.y), static_cast<uint8_t>(pos.z), block);
+}
+
+uint16_t Chunk::get_nbt(uint8_t x, uint16_t y, uint8_t z) const {
+    uint8_t nugget_idx = y / ChunkNugget::SIZE;
+    uint8_t local_y = y % ChunkNugget::SIZE;
+    return nuggets[nugget_idx].get_nbt(x, local_y, z);
+}
+
+void Chunk::set_nbt(uint8_t x, uint16_t y, uint8_t z, uint16_t nbt) {
+    uint8_t nugget_idx = y / ChunkNugget::SIZE;
+    uint8_t local_y = y % ChunkNugget::SIZE;
+    nuggets[nugget_idx].set_nbt(x, local_y, z, nbt);
+}
+
+uint16_t Chunk::get_nbt(const Vec3i& pos) const {
+    return get_nbt(static_cast<uint8_t>(pos.x),
+                   static_cast<uint16_t>(pos.y),
+                   static_cast<uint8_t>(pos.z));
+}
+
+void Chunk::set_nbt(const Vec3i& pos, uint16_t nbt) {
+    set_nbt(static_cast<uint8_t>(pos.x),
+            static_cast<uint16_t>(pos.y),
+            static_cast<uint8_t>(pos.z), nbt);
 }
 
 // --- Утилиты ---
@@ -236,5 +309,3 @@ void Chunk::slow_tick(uint64_t global_tick, uint32_t tick_counter, const BlockMa
         nugget.slow_tick(global_tick, tick_counter, block_mgr);
     }
 }
-
-

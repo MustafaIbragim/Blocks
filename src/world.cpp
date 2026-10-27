@@ -1,5 +1,7 @@
 #include "world.h"
 #include "chunk_mesher.h"
+#include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 
@@ -102,6 +104,29 @@ std::shared_ptr<Block> World::get_block(const Vec3i& world_pos) const {
                            block_mgr);
 }
 
+std::shared_ptr<Block> World::get_block(const Vec3i& world_pos,
+                                        uint16_t& nbt_out) const {
+    nbt_out = 0;
+    if (world_pos.y < 0 || world_pos.y >= CHUNK_HEIGHT) {
+        return block_mgr.get_block(0);
+    }
+
+    Vec2i chunk_pos = world_to_chunk_coords(world_pos);
+    const Chunk* chunk = get_chunk(chunk_pos);
+    if (!chunk) {
+        return block_mgr.get_barrier_block();
+    }
+
+    Vec3i local_pos = world_to_local_coords(world_pos);
+    nbt_out = chunk->get_nbt(static_cast<uint8_t>(local_pos.x),
+                             static_cast<uint16_t>(local_pos.y),
+                             static_cast<uint8_t>(local_pos.z));
+    return chunk->get_block(static_cast<uint8_t>(local_pos.x),
+                            static_cast<uint16_t>(local_pos.y),
+                            static_cast<uint8_t>(local_pos.z),
+                            block_mgr);
+}
+
 void World::set_block(const Vec3i& world_pos, std::shared_ptr<Block> block) {
     if (world_pos.y < 0 || world_pos.y >= CHUNK_HEIGHT) {
         return;
@@ -121,13 +146,15 @@ void World::set_block(const Vec3i& world_pos, std::shared_ptr<Block> block) {
     uint8_t local_x = static_cast<uint8_t>(local_pos.x);
     uint16_t local_y = static_cast<uint16_t>(local_pos.y);
     uint8_t local_z = static_cast<uint8_t>(local_pos.z);
+
     uint32_t global_index = Chunk::coords_to_global_index(local_x, local_y, local_z);
 
     // Запоминаем оптические свойства до изменения, чтобы обновить только
     // те клетки, где свет действительно может измениться.
-    uint16_t old_id = chunk->get_block_id(local_x, local_y, local_z);
+    std::shared_ptr<Block> old_block = chunk->get_block(
+        local_x, local_y, local_z, block_mgr);
     uint8_t old_opacity = chunk->opacity_data[global_index];
-    uint8_t old_light = block_mgr.get_light(old_id);
+    uint8_t old_light = old_block ? old_block->light : 0;
     uint8_t new_light = block ? block->light : 0;
 
     chunk->set_block(local_x, local_y, local_z, block);
@@ -150,7 +177,219 @@ void World::remove_block(const Vec3i& world_pos) {
     set_block(world_pos, nullptr);
 }
 
+uint16_t World::get_block_id(const Vec3i& world_pos) const {
+    if (world_pos.y < 0 || world_pos.y >= CHUNK_HEIGHT) {
+        return 0;
+    }
+    Vec2i chunk_pos = world_to_chunk_coords(world_pos);
+    const Chunk* chunk = get_chunk(chunk_pos);
+    if (!chunk) {
+        return 0;
+    }
+    Vec3i local_pos = world_to_local_coords(world_pos);
+    return chunk->get_block_id(static_cast<uint8_t>(local_pos.x),
+                               static_cast<uint16_t>(local_pos.y),
+                               static_cast<uint8_t>(local_pos.z));
+}
+
+uint16_t World::get_nbt(const Vec3i& world_pos) const {
+    if (world_pos.y < 0 || world_pos.y >= CHUNK_HEIGHT) {
+        return 0;
+    }
+    Vec2i chunk_pos = world_to_chunk_coords(world_pos);
+    const Chunk* chunk = get_chunk(chunk_pos);
+    if (!chunk) {
+        return 0;
+    }
+    Vec3i local_pos = world_to_local_coords(world_pos);
+    return chunk->get_nbt(static_cast<uint8_t>(local_pos.x),
+                          static_cast<uint16_t>(local_pos.y),
+                          static_cast<uint8_t>(local_pos.z));
+}
+
+bool World::set_nbt(const Vec3i& world_pos, uint16_t nbt) {
+    if (world_pos.y < 0 || world_pos.y >= CHUNK_HEIGHT) {
+        return false;
+    }
+    Vec2i chunk_pos = world_to_chunk_coords(world_pos);
+    std::shared_ptr<Chunk> chunk = get_chunk(chunk_pos);
+    if (!chunk) {
+        return false;
+    }
+    Vec3i local_pos = world_to_local_coords(world_pos);
+    chunk->set_nbt(static_cast<uint8_t>(local_pos.x),
+                   static_cast<uint16_t>(local_pos.y),
+                   static_cast<uint8_t>(local_pos.z), nbt);
+
+    // NBT может влиять на вариант меша/текстуры, поэтому помечаем чанк
+    // dirty сразу.
+    mark_chunk_dirty(chunk_pos);
+    return true;
+}
+
+// ============================================================================
+// Item-entity (временно на уровне World)
+// ============================================================================
+
+uint32_t World::spawn_item_entity(const ItemStack& stack,
+                                  const Vec3f& position,
+                                  const Vec3f& velocity) {
+    if (stack.empty()) {
+        return 0;
+    }
+
+    auto entity = std::make_shared<ItemEntity>(stack, position, velocity);
+    entity->id = next_item_entity_id++;
+    item_entities.push_back(entity);
+    return entity->id;
+}
+
+bool World::remove_item_entity(uint32_t entity_id) {
+    auto it = std::find_if(
+        item_entities.begin(), item_entities.end(),
+        [entity_id](const std::shared_ptr<ItemEntity>& entity) {
+            return entity && entity->id == entity_id;
+        });
+    if (it == item_entities.end()) {
+        return false;
+    }
+    item_entities.erase(it);
+    return true;
+}
+
+void World::clear_item_entities() {
+    item_entities.clear();
+    next_item_entity_id = 1;
+}
+
+std::shared_ptr<ItemEntity> World::get_item_entity(uint32_t entity_id) const {
+    for (const auto& entity : item_entities) {
+        if (entity && entity->id == entity_id) {
+            return entity;
+        }
+    }
+    return nullptr;
+}
+
+uint32_t World::item_entity_count() const {
+    uint32_t count = 0;
+    for (const auto& entity : item_entities) {
+        if (entity && entity->alive && !entity->stack.empty()) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool World::pickup_item_entity(uint32_t entity_id, Inventory& inventory,
+                               uint32_t preferred_slot) {
+    auto entity = get_item_entity(entity_id);
+    if (!entity || !entity->can_pickup()) {
+        return false;
+    }
+
+    ItemStack stack = entity->stack;
+    const uint16_t before = stack.count;
+
+    if (preferred_slot != UINT32_MAX) {
+        inventory.add_to_slot(preferred_slot, stack);
+    } else {
+        inventory.add(stack);
+    }
+
+    const uint16_t picked = static_cast<uint16_t>(before - stack.count);
+    if (picked == 0) {
+        return false;
+    }
+
+    entity->stack = stack;
+    if (entity->stack.empty()) {
+        remove_item_entity(entity_id);
+    }
+    return true;
+}
+
+bool World::pickup_nearest_item(const Vec3f& position, float radius,
+                                Inventory& inventory,
+                                uint32_t preferred_slot) {
+    std::shared_ptr<ItemEntity> best;
+    float best_distance = radius;
+
+    for (const auto& entity : item_entities) {
+        if (!entity || !entity->can_pickup()) {
+            continue;
+        }
+        Vec3f delta = entity->transform.position - position;
+        float distance = delta.length();
+        if (distance <= best_distance) {
+            best_distance = distance;
+            best = entity;
+        }
+    }
+
+    if (!best) {
+        return false;
+    }
+    return pickup_item_entity(best->id, inventory, preferred_slot);
+}
+
+void World::update_items(float delta_time) {
+    if (delta_time <= 0.0f) {
+        return;
+    }
+
+    constexpr float GRAVITY = 20.0f;
+    constexpr float ITEM_RADIUS = 0.25f;
+    constexpr float MAX_DELTA = 0.1f;
+    const float dt = std::min(delta_time, MAX_DELTA);
+
+    for (auto& entity : item_entities) {
+        if (!entity) {
+            continue;
+        }
+        if (entity->stack.empty()) {
+            entity->alive = false;
+            continue;
+        }
+
+        if (entity->pickup_delay > 0.0f) {
+            entity->pickup_delay -= dt;
+        }
+
+        entity->velocity.y -= GRAVITY * dt;
+        Vec3f next = entity->transform.position + entity->velocity * dt;
+
+        // Простейшее приземление на верхнюю грань блока. Полноценные
+        // коллизии для item-entity появятся после переработки коллизий.
+        Vec3i below(
+            static_cast<int32_t>(std::floor(next.x)),
+            static_cast<int32_t>(std::floor(next.y - ITEM_RADIUS)),
+            static_cast<int32_t>(std::floor(next.z)));
+        uint16_t support_nbt = 0;
+        std::shared_ptr<Block> support = get_block(below, support_nbt);
+        if (support && support->is_solid(support_nbt) &&
+            next.y - ITEM_RADIUS < static_cast<float>(below.y + 1)) {
+            next.y = static_cast<float>(below.y + 1) + ITEM_RADIUS;
+            entity->velocity.y = 0.0f;
+            entity->velocity.x *= 0.75f;
+            entity->velocity.z *= 0.75f;
+        }
+
+        entity->transform.position = next;
+    }
+
+    item_entities.erase(
+        std::remove_if(item_entities.begin(), item_entities.end(),
+                       [](const std::shared_ptr<ItemEntity>& entity) {
+                           return !entity || !entity->alive || entity->stack.empty();
+                       }),
+        item_entities.end());
+}
+
 void World::update(float delta_time) {
+    // Items не зависят от 20-герцового такта мира: двигаем их каждый кадр.
+    update_items(delta_time);
+
     if (delta_time > 0.0f) {
         update_accumulator += delta_time;
     }

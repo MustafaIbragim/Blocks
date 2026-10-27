@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
+#include <limits>
 #include "world.h"
 
 
@@ -12,6 +13,7 @@ PYBIND11_MODULE(world_module, m) {
     py::module_::import("block_module");
     py::module_::import("texture_module");
     py::module_::import("mesh_module");
+    py::module_::import("item_module");
     
     m.doc() = "World module";
     
@@ -43,9 +45,42 @@ PYBIND11_MODULE(world_module, m) {
         .def_static("world_to_local_coords", &World::world_to_local_coords, py::arg("world_pos"))
         
         // Доступ к блокам
-        .def("get_block", &World::get_block, py::arg("world_pos"))
+        .def("get_block", static_cast<std::shared_ptr<Block> (World::*)(const Vec3i&) const>(&World::get_block),
+             py::arg("world_pos"))
+        .def("get_block_with_nbt",
+             [](const World& self, const Vec3i& pos) {
+                 uint16_t nbt = 0;
+                 std::shared_ptr<Block> block = self.get_block(pos, nbt);
+                 return py::make_tuple(block, nbt);
+             },
+             py::arg("world_pos"),
+             "Возвращает (block, nbt) для указанной клетки")
         .def("set_block", &World::set_block, py::arg("world_pos"), py::arg("block"))
         .def("remove_block", &World::remove_block, py::arg("world_pos"))
+        .def("get_block_id", &World::get_block_id, py::arg("world_pos"),
+             "16-битный id обычного блока из BlockManager")
+
+        // NBT: 16-битное число, интерпретируемое типом блока
+        .def("get_nbt", &World::get_nbt, py::arg("world_pos"))
+        .def("set_nbt", &World::set_nbt, py::arg("world_pos"), py::arg("nbt"))
+
+        // Items в мире (временно на уровне World)
+        .def("spawn_item_entity", &World::spawn_item_entity,
+             py::arg("stack"), py::arg("position"),
+             py::arg("velocity") = Vec3f::zero())
+        .def("remove_item_entity", &World::remove_item_entity, py::arg("entity_id"))
+        .def("clear_item_entities", &World::clear_item_entities)
+        .def("get_item_entity", &World::get_item_entity, py::arg("entity_id"))
+        .def("get_item_entities", &World::get_item_entities,
+             py::return_value_policy::reference_internal)
+        .def("item_entity_count", &World::item_entity_count)
+        .def("pickup_item_entity", &World::pickup_item_entity,
+             py::arg("entity_id"), py::arg("inventory"),
+             py::arg("preferred_slot") = std::numeric_limits<uint32_t>::max())
+        .def("pickup_nearest_item", &World::pickup_nearest_item,
+             py::arg("position"), py::arg("radius"), py::arg("inventory"),
+             py::arg("preferred_slot") = std::numeric_limits<uint32_t>::max())
+        .def("update_items", &World::update_items, py::arg("delta_time"))
         
         // Освещение и тактовое обновление мира
         .def("get_light_engine", &World::get_light_engine,

@@ -9,26 +9,41 @@ class PyBlock : public Block {
 public:
     using Block::Block;
     
-    void on_place(const Vec3i& pos) const override {
-        PYBIND11_OVERRIDE(void, Block, on_place, pos);
+    uint16_t on_place(const Vec3i& pos, uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(uint16_t, Block, on_place, pos, nbt);
     }
-    void on_break(const Vec3i& pos) const override {
-        PYBIND11_OVERRIDE(void, Block, on_break, pos);
+    uint16_t on_break(const Vec3i& pos, uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(uint16_t, Block, on_break, pos, nbt);
     }
-    bool on_interact(const Vec3i& pos) const override {
-        PYBIND11_OVERRIDE(bool, Block, on_interact, pos);
+    bool on_interact(const Vec3i& pos, uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(bool, Block, on_interact, pos, nbt);
     }
-    void on_replace(const Vec3i& pos) const override {
-        PYBIND11_OVERRIDE(void, Block, on_replace, pos);
+    uint16_t on_replace(const Vec3i& pos, uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(uint16_t, Block, on_replace, pos, nbt);
     }
-    void on_changed(const Vec3i& pos) const override {
-        PYBIND11_OVERRIDE(void, Block, on_changed, pos);
+    uint16_t on_changed(const Vec3i& pos, uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(uint16_t, Block, on_changed, pos, nbt);
     }
-    void on_tick(const Vec3i& pos, uint64_t tick) const override {
-        PYBIND11_OVERRIDE(void, Block, on_tick, pos, tick);
+    uint16_t on_tick(const Vec3i& pos, uint64_t tick,
+                     uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(uint16_t, Block, on_tick, pos, tick, nbt);
     }
-    void on_slow_tick(const Vec3i& pos, uint64_t tick) const override {
-        PYBIND11_OVERRIDE(void, Block, on_slow_tick, pos, tick);
+    uint16_t on_slow_tick(const Vec3i& pos, uint64_t tick,
+                          uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(uint16_t, Block, on_slow_tick, pos, tick, nbt);
+    }
+
+    uint16_t get_face_texture(uint8_t face, uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(uint16_t, Block, get_face_texture, face, nbt);
+    }
+    std::shared_ptr<Mesh> get_inner_mesh(uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(std::shared_ptr<Mesh>, Block, get_inner_mesh, nbt);
+    }
+    bool is_solid(uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(bool, Block, is_solid, nbt);
+    }
+    bool has_collision(uint16_t nbt) const override {
+        PYBIND11_OVERRIDE(bool, Block, has_collision, nbt);
     }
 };
 
@@ -48,17 +63,21 @@ PYBIND11_MODULE(block_module, m) {
         .def_readwrite("status", &Block::status)
         .def_readwrite("name", &Block::name)
         .def("set_face_texture", &Block::set_face_texture, py::arg("face"), py::arg("texture_id"))
-        .def("get_face_texture", &Block::get_face_texture, py::arg("face"))
+        .def("get_face_texture", &Block::get_face_texture,
+             py::arg("face"), py::arg("nbt") = 0)
         .def("set_inner_mesh", &Block::set_inner_mesh, py::arg("mesh"))
-        .def("get_inner_mesh", &Block::get_inner_mesh)
-        .def("is_solid", &Block::is_solid)
-        .def("on_place", &Block::on_place, py::arg("pos"))
-        .def("on_break", &Block::on_break, py::arg("pos"))
-        .def("on_interact", &Block::on_interact, py::arg("pos"))
-        .def("on_replace", &Block::on_replace, py::arg("pos"))
-        .def("on_changed", &Block::on_changed, py::arg("pos"))
-        .def("on_tick", &Block::on_tick, py::arg("pos"), py::arg("tick"))
-        .def("on_slow_tick", &Block::on_slow_tick, py::arg("pos"), py::arg("tick"))
+        .def("get_inner_mesh", &Block::get_inner_mesh, py::arg("nbt") = 0)
+        .def("is_solid", &Block::is_solid, py::arg("nbt") = 0)
+        .def("has_collision", &Block::has_collision, py::arg("nbt") = 0)
+        .def("on_place", &Block::on_place, py::arg("pos"), py::arg("nbt") = 0)
+        .def("on_break", &Block::on_break, py::arg("pos"), py::arg("nbt") = 0)
+        .def("on_interact", &Block::on_interact, py::arg("pos"), py::arg("nbt") = 0)
+        .def("on_replace", &Block::on_replace, py::arg("pos"), py::arg("nbt") = 0)
+        .def("on_changed", &Block::on_changed, py::arg("pos"), py::arg("nbt") = 0)
+        .def("on_tick", &Block::on_tick,
+             py::arg("pos"), py::arg("tick"), py::arg("nbt") = 0)
+        .def("on_slow_tick", &Block::on_slow_tick,
+             py::arg("pos"), py::arg("tick"), py::arg("nbt") = 0)
         .def("__repr__", [](const Block& b) {
             return "Block(id=" + std::to_string(b.id) + 
                    ", name='" + b.name + "')";
@@ -71,9 +90,8 @@ PYBIND11_MODULE(block_module, m) {
         .def("has_block", &BlockManager::has_block, py::arg("id"))
         .def("size", &BlockManager::size)
         .def("get_air_id", &BlockManager::get_air_id)
+        .def_readonly_static("MAX_BLOCKS", &BlockManager::MAX_BLOCKS)
         .def("__repr__", [](const BlockManager& bm) {
             return "BlockManager(size=" + std::to_string(bm.size()) + ")";
         });
 }
-
-

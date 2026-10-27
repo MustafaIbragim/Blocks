@@ -7,21 +7,26 @@ namespace py = pybind11;
 
 PYBIND11_MODULE(renderer_module, m) {
     py::module_::import("vec_module");
+    py::module_ view_cam = py::module_::import("view_cam_module");
     
     m.doc() = "OpenGL Renderer module";
+
+    // ViewCam живёт в отдельном модуле; оставляем алиас для совместимости.
+    m.attr("ViewCam") = view_cam.attr("ViewCam");
     
-    py::class_<ViewCam>(m, "ViewCam")
+    py::class_<Sprite>(m, "Sprite")
         .def(py::init<>())
-        .def_readwrite("position", &ViewCam::position)
-        .def_readwrite("rotation", &ViewCam::rotation)
-        .def_readwrite("fov", &ViewCam::fov)
-        .def_readwrite("near_plane", &ViewCam::near_plane)
-        .def_readwrite("far_plane", &ViewCam::far_plane)
-        .def("__repr__", [](const ViewCam& cam) {
-            return "ViewCam(pos=(" + std::to_string(cam.position.x) + ", " + 
-                   std::to_string(cam.position.y) + ", " + std::to_string(cam.position.z) + "))";
+        .def(py::init<const Vec3f&, float, uint32_t>(),
+             py::arg("position"), py::arg("size") = 0.5f,
+             py::arg("texture_id") = 0)
+        .def_readwrite("position", &Sprite::position)
+        .def_readwrite("size", &Sprite::size)
+        .def_readwrite("texture_id", &Sprite::texture_id)
+        .def("__repr__", [](const Sprite& sprite) {
+            return "Sprite(texture_id=" + std::to_string(sprite.texture_id) +
+                   ", size=" + std::to_string(sprite.size) + ")";
         });
-    
+
     py::class_<Renderer>(m, "Renderer")
         .def(py::init<>())
         .def("init", &Renderer::init, py::arg("width"), py::arg("height"), py::arg("title"))
@@ -32,6 +37,12 @@ PYBIND11_MODULE(renderer_module, m) {
         .def("upload_mesh", &Renderer::upload_mesh, py::arg("mesh_id"), py::arg("mesh"))
         .def("remove_mesh", &Renderer::remove_mesh, py::arg("mesh_id"))
         .def("render", &Renderer::render, py::arg("current_tick"), py::arg("camera"), py::arg("min_light"))
+        .def("render_sprites", &Renderer::render_sprites,
+             py::arg("sprites"), py::arg("camera"))
+        .def("render_screen_texture", &Renderer::render_screen_texture,
+             py::arg("texture_id"), py::arg("x"), py::arg("y"),
+             py::arg("w"), py::arg("h"),
+             "Рисует 2D-текстуру в пикселях от левого нижнего угла")
         .def("should_close", &Renderer::should_close)
         .def("poll_events", &Renderer::poll_events)
         .def("swap_buffers", &Renderer::swap_buffers)

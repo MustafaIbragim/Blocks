@@ -58,6 +58,7 @@ RaycastHit raycast_voxel(World& world,
             result.hit = true;
             result.block = Vec3i(x, y, z);
             result.normal = normal;
+            result.nbt = world.get_nbt(Vec3i(x, y, z));
             result.distance = distance;
             return result;
         }

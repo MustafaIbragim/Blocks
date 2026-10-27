@@ -68,6 +68,7 @@ public:
 
 private:
     void emitBlockTriangles(const Block& block,
+                            uint16_t nbt,
                             const Vec3i& world_block_pos,
                             btTriangleCallback* callback,
                             const btVector3& query_min,

@@ -185,6 +185,7 @@ void ChunkMesher::build_cube_faces(
     const Chunk& chunk,
     uint8_t x, uint16_t y, uint8_t z,
     const Block& block,
+    uint16_t nbt,
     const BlockManager& block_mgr,
     const TextureBlocksManager& tex_blocks_mgr
 ) {
@@ -193,32 +194,38 @@ void ChunkMesher::build_cube_faces(
     int32_t iz = static_cast<int32_t>(z);
 
     if (!is_neighbor_cube(chunk, ix - 1, iy, iz, block_mgr)) {
-        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(block.face_textures[0]);
+        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(
+            block.get_face_texture(0, nbt));
         add_face(mesh, chunk, x, y, z, 0, layer, anim_data);
     }
 
     if (!is_neighbor_cube(chunk, ix + 1, iy, iz, block_mgr)) {
-        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(block.face_textures[1]);
+        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(
+            block.get_face_texture(1, nbt));
         add_face(mesh, chunk, x, y, z, 1, layer, anim_data);
     }
 
     if (!is_neighbor_cube(chunk, ix, iy - 1, iz, block_mgr)) {
-        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(block.face_textures[2]);
+        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(
+            block.get_face_texture(2, nbt));
         add_face(mesh, chunk, x, y, z, 2, layer, anim_data);
     }
 
     if (!is_neighbor_cube(chunk, ix, iy + 1, iz, block_mgr)) {
-        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(block.face_textures[3]);
+        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(
+            block.get_face_texture(3, nbt));
         add_face(mesh, chunk, x, y, z, 3, layer, anim_data);
     }
 
     if (!is_neighbor_cube(chunk, ix, iy, iz - 1, block_mgr)) {
-        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(block.face_textures[4]);
+        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(
+            block.get_face_texture(4, nbt));
         add_face(mesh, chunk, x, y, z, 4, layer, anim_data);
     }
 
     if (!is_neighbor_cube(chunk, ix, iy, iz + 1, block_mgr)) {
-        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(block.face_textures[5]);
+        auto [layer, anim_data] = tex_blocks_mgr.get_layer_and_anim(
+            block.get_face_texture(5, nbt));
         add_face(mesh, chunk, x, y, z, 5, layer, anim_data);
     }
 }
@@ -274,6 +281,8 @@ std::shared_ptr<Mesh> ChunkMesher::build_mesh(
             auto block = block_mgr.get_block(block_id);
             if (!block) continue;
 
+            const uint16_t nbt = nugget.nbt_data[local_index];
+
             Vec3i local_coords = ChunkNugget::index_to_coords(local_index);
             uint8_t local_x = static_cast<uint8_t>(local_coords.x);
             uint8_t local_y = static_cast<uint8_t>(local_coords.y);
@@ -283,10 +292,12 @@ std::shared_ptr<Mesh> ChunkMesher::build_mesh(
             uint32_t global_index = Chunk::coords_to_global_index(local_x, global_y, local_z);
 
             if (chunk.is_standard_cube(global_index)) {
-                build_cube_faces(mesh, chunk, local_x, global_y, local_z, *block, block_mgr, tex_blocks_mgr);
+                build_cube_faces(mesh, chunk, local_x, global_y, local_z,
+                                 *block, nbt, block_mgr, tex_blocks_mgr);
             } else {
-                if (block->inner) {
-                    append_inner_mesh(mesh, chunk, *block->inner, local_x, global_y, local_z);
+                std::shared_ptr<Mesh> inner = block->get_inner_mesh(nbt);
+                if (inner) {
+                    append_inner_mesh(mesh, chunk, *inner, local_x, global_y, local_z);
                 }
             }
         }

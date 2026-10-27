@@ -76,6 +76,8 @@ add_library(core SHARED
     src/entity.cpp
     src/dummy.cpp
     src/block.cpp
+    src/item.cpp
+    src/view_cam.cpp
     src/chunk.cpp
     src/chunk_mesher.cpp
     src/light_engine.cpp
@@ -108,6 +110,38 @@ set_target_properties(vec_module PROPERTIES
 pybind11_add_module(entity_module bindings/entity_pybind.cpp)
 target_link_libraries(entity_module PRIVATE core)
 set_target_properties(entity_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(view_cam_module bindings/view_cam_pybind.cpp)
+target_link_libraries(view_cam_module PRIVATE core)
+set_target_properties(view_cam_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(bullet_module bindings/bullet_pybind.cpp)
+target_link_libraries(bullet_module PRIVATE core)
+set_target_properties(bullet_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(voxel_collision_shape_module bindings/voxel_collision_shape_pybind.cpp)
+target_link_libraries(voxel_collision_shape_module PRIVATE core)
+set_target_properties(voxel_collision_shape_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(item_module bindings/item_pybind.cpp)
+target_link_libraries(item_module PRIVATE core)
+set_target_properties(item_module PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
     INSTALL_RPATH "$ORIGIN/../lib"
     BUILD_WITH_INSTALL_RPATH TRUE

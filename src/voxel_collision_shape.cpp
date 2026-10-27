@@ -272,7 +272,7 @@ void VoxelCollisionShape::processAllTriangles(btTriangleCallback* callback,
                         for (int local_x = local_x0; local_x <= local_x1; ++local_x) {
                             Vec3i world_pos(base_x + local_x, y, base_z + local_z);
                             int triangle_index = 0;
-                            emitBlockTriangles(barrier, world_pos, callback,
+                            emitBlockTriangles(barrier, 0, world_pos, callback,
                                                query_min, query_max,
                                                aabbMin, aabbMax,
                                                triangle_index);
@@ -300,15 +300,25 @@ void VoxelCollisionShape::processAllTriangles(btTriangleCallback* callback,
                             block = world->get_block(Vec3i(base_x + local_x, y,
                                                            base_z + local_z));
                         } else {
-                            block = world->get_block_mgr().get_block(block_id);
+                            block = chunk->get_block_fast(
+                                static_cast<uint8_t>(local_x),
+                                static_cast<uint16_t>(y),
+                                static_cast<uint8_t>(local_z),
+                                world->get_block_mgr());
                         }
-                        if (!block || !block->has_collision()) {
+
+                        const uint16_t nbt = chunk->get_nbt(
+                            static_cast<uint8_t>(local_x),
+                            static_cast<uint16_t>(y),
+                            static_cast<uint8_t>(local_z));
+
+                        if (!block || !block->has_collision(nbt)) {
                             continue;
                         }
 
                         Vec3i world_pos(base_x + local_x, y, base_z + local_z);
                         int triangle_index = 0;
-                        emitBlockTriangles(*block, world_pos, callback,
+                        emitBlockTriangles(*block, nbt, world_pos, callback,
                                            query_min, query_max,
                                            aabbMin, aabbMax,
                                            triangle_index);
@@ -320,6 +330,7 @@ void VoxelCollisionShape::processAllTriangles(btTriangleCallback* callback,
 }
 
 void VoxelCollisionShape::emitBlockTriangles(const Block& block,
+                                             uint16_t nbt,
                                              const Vec3i& world_block_pos,
                                              btTriangleCallback* callback,
                                              const btVector3& query_min,
@@ -342,7 +353,12 @@ void VoxelCollisionShape::emitBlockTriangles(const Block& block,
     block_transform.setIdentity();
     block_transform.setOrigin(block_min + btVector3(btScalar(0.5), btScalar(0.5), btScalar(0.5)));
 
-    emitShapeTriangles(*block.collision, block_transform, callback,
+    std::shared_ptr<btCollisionShape> shape = block.get_collision_shape(nbt);
+    if (!shape) {
+        return;
+    }
+
+    emitShapeTriangles(*shape, block_transform, callback,
                        query_min, query_max,
                        output_min, output_max,
                        static_cast<int>(block.id), triangle_index);

@@ -12,6 +12,7 @@ struct RaycastHit {
     bool hit = false;
     Vec3i block;             // блок, в который попал луч
     Vec3i normal;            // нормаль грани (для установки блока)
+    uint16_t nbt = 0;        // NBT блока в точке попадания
     float distance = 0.0f;   // расстояние до входа в блок
 
     explicit operator bool() const { return hit; }

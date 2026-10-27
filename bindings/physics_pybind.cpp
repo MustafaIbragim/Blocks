@@ -7,7 +7,6 @@
 #include "block.h"
 #include "physics_world.h"
 #include "vec.h"
-#include "voxel_collision_shape.h"
 #include "world.h"
 
 
@@ -17,50 +16,20 @@ PYBIND11_MODULE(physics_module, m) {
     py::module_::import("vec_module");
     py::module_::import("block_module");
     py::module_::import("world_module");
+    py::module_::import("bullet_module");
+    py::module_::import("voxel_collision_shape_module");
 
     m.doc() = "Bullet Physics integration for the voxel world";
 
-    // Базовые Bullet-типы нужны, чтобы из Python можно было назначать
-    // блокам собственные collision shapes (flyweight: один shape на тип).
-    py::class_<btCollisionShape, std::shared_ptr<btCollisionShape>>(m, "CollisionShape")
-        .def("get_margin", &btCollisionShape::getMargin)
-        .def("set_margin", &btCollisionShape::setMargin, py::arg("margin"))
-        .def("get_name", &btCollisionShape::getName);
-
-    py::class_<btConcaveShape, btCollisionShape, std::shared_ptr<btConcaveShape>>(
-        m, "ConcaveShape");
-
-    py::class_<btBoxShape, btCollisionShape, std::shared_ptr<btBoxShape>>(m, "BoxShape")
-        .def_property_readonly("half_extents", [](const btBoxShape& box) {
-            const btVector3 h = box.getHalfExtentsWithoutMargin();
-            return Vec3f(h.x(), h.y(), h.z());
-        });
-
-    py::class_<VoxelCollisionShape, btConcaveShape, std::shared_ptr<VoxelCollisionShape>>(
-        m, "VoxelCollisionShape")
-        .def(py::init<World&, const Vec2i&>(),
-             py::arg("world"), py::arg("chunk_pos"))
-        .def_property_readonly("world_origin", [](const VoxelCollisionShape& shape) {
-            const btVector3& origin = shape.getWorldOrigin();
-            return Vec3f(origin.x(), origin.y(), origin.z());
-        })
-        .def_property_readonly("local_min", [](const VoxelCollisionShape& shape) {
-            const btVector3& v = shape.getLocalMin();
-            return Vec3f(v.x(), v.y(), v.z());
-        })
-        .def_property_readonly("local_max", [](const VoxelCollisionShape& shape) {
-            const btVector3& v = shape.getLocalMax();
-            return Vec3f(v.x(), v.y(), v.z());
-        })
-        .def_property_readonly("world_min", [](const VoxelCollisionShape& shape) {
-            const btVector3 v = shape.getWorldMin();
-            return Vec3f(v.x(), v.y(), v.z());
-        })
-        .def_property_readonly("world_max", [](const VoxelCollisionShape& shape) {
-            const btVector3 v = shape.getWorldMax();
-            return Vec3f(v.x(), v.y(), v.z());
-        })
-        .def("get_name", &VoxelCollisionShape::getName);
+    // Совместимость: типы Bullet и VoxelCollisionShape теперь живут в
+    // отдельных модулях, но остаются доступны через physics_module.
+    py::module_ bullet = py::module_::import("bullet_module");
+    py::module_ voxel = py::module_::import("voxel_collision_shape_module");
+    m.attr("CollisionShape") = bullet.attr("CollisionShape");
+    m.attr("ConcaveShape") = bullet.attr("ConcaveShape");
+    m.attr("BoxShape") = bullet.attr("BoxShape");
+    m.attr("make_box_shape") = bullet.attr("make_box_shape");
+    m.attr("VoxelCollisionShape") = voxel.attr("VoxelCollisionShape");
 
     py::class_<PhysicsWorld>(m, "PhysicsWorld")
         .def(py::init<>())
@@ -109,18 +78,6 @@ PYBIND11_MODULE(physics_module, m) {
              py::arg("fixed_time_step") = 1.0f / 60.0f)
         .def("get_num_collision_objects", &PhysicsWorld::get_num_collision_objects)
         .def("get_num_manifolds", &PhysicsWorld::get_num_manifolds);
-
-    // Один shared_ptr<btCollisionShape> можно назначить всем блокам одного типа.
-    m.def("make_box_shape",
-          [](float half_x, float half_y, float half_z) {
-              auto shape = std::make_shared<btBoxShape>(
-                  btVector3(btScalar(half_x), btScalar(half_y), btScalar(half_z)));
-              shape->setMargin(btScalar(0.0));
-              return shape;
-          },
-          py::arg("half_x") = 0.5f,
-          py::arg("half_y") = 0.5f,
-          py::arg("half_z") = 0.5f);
 
     m.def("set_block_collision",
           [](Block& block, std::shared_ptr<btCollisionShape> shape) {

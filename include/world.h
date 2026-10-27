@@ -12,6 +12,7 @@
 #include "texture.h"
 #include "mesh.h"
 #include "light_engine.h"
+#include "item.h"
 
 
 struct Vec2iHash {
@@ -63,8 +64,49 @@ public:
     static Vec3i world_to_local_coords(const Vec3i& world_pos);
     
     std::shared_ptr<Block> get_block(const Vec3i& world_pos) const;
+
+    // Одновременно отдаёт блок и его NBT. Удобно для логики, которой нужен
+    // не только тип блока, но и состояние конкретной клетки.
+    std::shared_ptr<Block> get_block(const Vec3i& world_pos,
+                                     uint16_t& nbt_out) const;
+
     void set_block(const Vec3i& world_pos, std::shared_ptr<Block> block);
     void remove_block(const Vec3i& world_pos);
+
+    // 16-битный id обычного блока из BlockManager.
+    uint16_t get_block_id(const Vec3i& world_pos) const;
+
+    // NBT (16 бит) для блока в мире. Интерпретация полностью зависит от
+    // типа блока; мир лишь хранит значение.
+    uint16_t get_nbt(const Vec3i& world_pos) const;
+    bool set_nbt(const Vec3i& world_pos, uint16_t nbt);
+
+    // --- Items в мире (временно на уровне World) ---
+    // Item-entity будет перенесён в чанки после переработки коллизий и
+    // хранения сущностей (roadmap, п.3/5/8).
+    uint32_t spawn_item_entity(
+        const ItemStack& stack,
+        const Vec3f& position,
+        const Vec3f& velocity = Vec3f::zero());
+    bool remove_item_entity(uint32_t entity_id);
+    void clear_item_entities();
+    std::shared_ptr<ItemEntity> get_item_entity(uint32_t entity_id) const;
+    const std::vector<std::shared_ptr<ItemEntity>>& get_item_entities() const {
+        return item_entities;
+    }
+    uint32_t item_entity_count() const;
+
+    // Подбор предмета в инвентарь. Если preferred_slot задан, проверяется
+    // именно эта ячейка (совпадение предмета и свободное место).
+    // Возвращает true, если хотя бы часть стака была подобрана.
+    bool pickup_item_entity(uint32_t entity_id, Inventory& inventory,
+                            uint32_t preferred_slot = UINT32_MAX);
+    bool pickup_nearest_item(const Vec3f& position, float radius,
+                             Inventory& inventory,
+                             uint32_t preferred_slot = UINT32_MAX);
+
+    // Гравитация/приземление item-entity и удаление пустых сущностей.
+    void update_items(float delta_time);
     
     // Тактовое обновление мира. Внутри ограничено 20 Гц.
     // Первым шагом обновляется освещение, затем пересобираются dirty-меши.
@@ -105,6 +147,9 @@ private:
     std::unordered_map<Vec2i, std::shared_ptr<Chunk>, Vec2iHash> chunks;
     std::unordered_map<Vec2i, std::shared_ptr<Mesh>, Vec2iHash> chunk_meshes;
     std::unordered_set<Vec2i, Vec2iHash> dirty_chunks;
+
+    std::vector<std::shared_ptr<ItemEntity>> item_entities;
+    uint32_t next_item_entity_id = 1;
 
     float update_accumulator = 0.0f;
     MeshUpdateCallback mesh_update_callback;

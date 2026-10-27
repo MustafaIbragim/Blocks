@@ -17,6 +17,7 @@ public:
     uint8_t opacity;
     uint8_t light;
     uint8_t status;
+
     std::string name;
     
     uint16_t face_textures[6]; 
@@ -35,43 +36,92 @@ public:
     void set_collision_shape(std::shared_ptr<btCollisionShape> shape) {
         collision = std::move(shape);
     }
-    std::shared_ptr<btCollisionShape> get_collision_shape() const {
+
+    // NBT передаётся в shape-аксессоры, чтобы наследники могли менять
+    // коллизию в зависимости от состояния конкретной клетки.
+    virtual std::shared_ptr<btCollisionShape> get_collision_shape(
+        uint16_t nbt = 0) const {
+        (void)nbt;
         return collision;
     }
+
     void clear_collision_shape() {
         collision.reset();
     }
-    bool has_collision() const {
+
+    virtual bool has_collision(uint16_t nbt = 0) const {
+        (void)nbt;
         return collision != nullptr;
     }
     
-    virtual void on_place(const Vec3i& pos) const {}
-    virtual void on_break(const Vec3i& pos) const {}
-    virtual bool on_interact(const Vec3i& pos) const { return false; }
-    virtual void on_replace(const Vec3i& pos) const {}
-    virtual void on_changed(const Vec3i& pos) const {}
+    // Колбэки получают NBT и возвращают, возможно изменённое, значение.
+    // Возврат по значению удобен и для C++, и для Python-переопределений.
+    virtual uint16_t on_place(const Vec3i& pos, uint16_t nbt) const {
+        (void)pos;
+        return nbt;
+    }
+    virtual uint16_t on_break(const Vec3i& pos, uint16_t nbt) const {
+        (void)pos;
+        return nbt;
+    }
+    virtual bool on_interact(const Vec3i& pos, uint16_t nbt) const {
+        (void)pos;
+        (void)nbt;
+        return false;
+    }
+    virtual uint16_t on_replace(const Vec3i& pos, uint16_t nbt) const {
+        (void)pos;
+        return nbt;
+    }
+    virtual uint16_t on_changed(const Vec3i& pos, uint16_t nbt) const {
+        (void)pos;
+        return nbt;
+    }
     
-    virtual void on_tick(const Vec3i& pos, uint64_t tick) const {}
-    virtual void on_slow_tick(const Vec3i& pos, uint64_t tick) const {}
+    virtual uint16_t on_tick(const Vec3i& pos, uint64_t tick,
+                             uint16_t nbt) const {
+        (void)pos;
+        (void)tick;
+        return nbt;
+    }
+    virtual uint16_t on_slow_tick(const Vec3i& pos, uint64_t tick,
+                                  uint16_t nbt) const {
+        (void)pos;
+        (void)tick;
+        return nbt;
+    }
     
     void set_face_texture(uint8_t face, uint16_t texture_id);
-    uint16_t get_face_texture(uint8_t face) const;
+    virtual uint16_t get_face_texture(uint8_t face, uint16_t nbt = 0) const;
     
     void set_inner_mesh(std::shared_ptr<Mesh> mesh);
-    std::shared_ptr<Mesh> get_inner_mesh() const;
+    virtual std::shared_ptr<Mesh> get_inner_mesh(uint16_t nbt = 0) const;
     
-    inline bool is_solid() const { return opacity == 255; }
+    virtual bool is_solid(uint16_t nbt = 0) const {
+        (void)nbt;
+        return opacity == 255;
+    }
     
     virtual ~Block() = default;
 };
 
 class BlockManager {
 public:
+    // Полный 16-битный диапазон id доступен обычным блокам. Уникальные
+    // блоки (когда появятся) — это наследники Block с обычным id, поэтому
+    // старший бит больше не резервируется.
+    static constexpr uint32_t MAX_BLOCKS = 1u << 16;
+
     BlockManager();
     
     uint16_t register_block(std::shared_ptr<Block> block);
     
     std::shared_ptr<Block> get_block(uint16_t id) const;
+
+    // Не владеющий указатель без копирования shared_ptr — для горячих
+    // путей (освещение, мешер, коллизии). Для воздуха и неизвестных id
+    // возвращает указатель на воздух.
+    const Block* get_block_raw(uint16_t id) const;
 
     // Барьерный блок: полностью прозрачный (не рендерится и не блокирует
     // свет) без меша, но с коллизией полноценного блока. Используется для
@@ -106,5 +156,3 @@ private:
     std::shared_ptr<btCollisionShape> default_collision_shape;
     std::shared_ptr<Block> barrier_block;
 };
-
-

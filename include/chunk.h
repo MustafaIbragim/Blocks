@@ -22,8 +22,14 @@ class ChunkNugget {
 public:
     static constexpr uint32_t SIZE = 32;
     static constexpr uint32_t BLOCKS_COUNT = SIZE * SIZE * SIZE;
-    
+
+    // Плоский массив id блоков. Здесь хранятся только обычные id
+    // BlockManager; уникальные блоки — это наследники Block с обычным id.
     std::array<uint16_t, BLOCKS_COUNT> block_ids;
+
+    // NBT каждого блока: 16 бит на клетку. Формат полностью определяется
+    // самим блоком; мир хранит и передаёт значение, не интерпретируя его.
+    std::array<uint16_t, BLOCKS_COUNT> nbt_data;
     
     std::vector<uint16_t> tick_indices;
     std::vector<uint16_t> slow_tick_indices;
@@ -36,6 +42,12 @@ public:
     // --- Быстрый доступ по ID ---
     uint16_t get_block_id(uint8_t x, uint8_t y, uint8_t z) const;
     void set_block_id(uint8_t x, uint8_t y, uint8_t z, uint16_t id);
+
+    // --- NBT ---
+    uint16_t get_nbt(uint8_t x, uint8_t y, uint8_t z) const;
+    void set_nbt(uint8_t x, uint8_t y, uint8_t z, uint16_t nbt);
+    uint16_t get_nbt_by_index(uint16_t index) const;
+    void set_nbt_by_index(uint16_t index, uint16_t nbt);
     
     // --- Удобный доступ через Block (с BlockManager) ---
     std::shared_ptr<Block> get_block(uint8_t x, uint8_t y, uint8_t z, const BlockManager& block_mgr) const;
@@ -96,6 +108,12 @@ public:
     
     void set_block(uint8_t x, uint16_t y, uint8_t z, std::shared_ptr<Block> block);
     void set_block(const Vec3i& pos, std::shared_ptr<Block> block);
+
+    // NBT по локальным координатам чанка.
+    uint16_t get_nbt(uint8_t x, uint16_t y, uint8_t z) const;
+    void set_nbt(uint8_t x, uint16_t y, uint8_t z, uint16_t nbt);
+    uint16_t get_nbt(const Vec3i& pos) const;
+    void set_nbt(const Vec3i& pos, uint16_t nbt);
     
     inline uint8_t get_opacity(uint8_t x, uint16_t y, uint8_t z) const {
         return opacity_data[coords_to_global_index(x, y, z)];
@@ -148,5 +166,3 @@ public:
     void tick_all(uint64_t tick, const BlockManager& block_mgr);
     void slow_tick(uint64_t global_tick, uint32_t tick_counter, const BlockManager& block_mgr);
 };
-
-
