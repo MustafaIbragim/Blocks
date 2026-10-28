@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
+#include <pybind11/numpy.h>
 #include <limits>
 #include "world.h"
 
@@ -102,7 +103,26 @@ PYBIND11_MODULE(world_module, m) {
         
         // Тики
         .def("tick_all", &World::tick_all, py::arg("tick"))
-        .def("slow_tick", &World::slow_tick, py::arg("global_tick"), py::arg("tick_counter"))
+        .def("slow_tick", &World::slow_tick, py::arg("global_tick"),
+             py::arg("tick_counter") = 0,
+             "Обновляет следующие 32 блока во всех загруженных чанках")
+        .def("reshuffle_slow_tick_sequence",
+             &World::reshuffle_slow_tick_sequence,
+             "Пересобирает общую перестановку индексов и начинает цикл заново")
+        .def_property("slow_tick_cursor", &World::get_slow_tick_cursor,
+                      &World::set_slow_tick_cursor,
+                      "Текущая позиция в slow_tick_sequence_np")
+        .def_property_readonly("slow_tick_sequence_np", [](World& self) {
+            return py::array_t<uint32_t>(
+                {World::SLOW_TICK_BLOCK_COUNT},
+                {sizeof(uint32_t)},
+                self.get_slow_tick_sequence().data(),
+                py::capsule(&self));
+        }, "Перестановка всех локальных индексов блоков чанка")
+        .def_readonly_static("SLOW_TICK_BLOCK_COUNT",
+                             &World::SLOW_TICK_BLOCK_COUNT)
+        .def_readonly_static("SLOW_TICK_BATCH_SIZE",
+                             &World::SLOW_TICK_BATCH_SIZE)
         
         // Доступ к менеджерам
         .def("get_tex_blocks_mgr", &World::get_tex_blocks_mgr, py::return_value_policy::reference)

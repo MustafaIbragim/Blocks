@@ -80,7 +80,7 @@ def test_renderer():
     assert scratch_world.pickup_item_entity(scratch_id, scratch_inv, 0)
     assert scratch_inv.get_slot(0).count == 8
     print("  [OK] Предметы: стак возвращается в предпочтительный слот")
-
+    
     # ------------------------------------------------------------------
     # Мир, блоки, текстуры
     # ------------------------------------------------------------------
@@ -125,7 +125,38 @@ def test_renderer():
     # 0=-X, 1=+X, 2=-Y, 3=+Y, 4=-Z, 5=+Z
     for i in range(6):
         dirt.set_face_texture(i, grass_tex_id if i == 3 else dirt_tex_id)
-
+    
+    ###
+    class GrassifyBlock(bm.Block):
+        def on_slow_tick(self, pos, tick, nbt=0):
+            light = 0
+            for x in range(3):
+                for z in range(3):
+                    if x!=1 or z!=1:
+                        block = world.get_block(vm.Vec3i(pos.x + x - 1, pos.y, pos.z + z - 1))
+                        if isinstance(block, bm.Block) and block.name == "dirt":
+                            c_x = pos.x >> 5
+                            c_z = pos.z >> 5
+                            chunk = world.get_chunk(vm.Vec2i(c_x, c_z))
+                            if isinstance(chunk, cm.Chunk):
+                                light = max(light, chunk.get_light(pos.x - (c_x << 5), pos.y + 1, pos.z - (c_z << 5)))
+            
+            new_nbt = nbt + random.randint(light // 8, light)
+            
+            if new_nbt >= 128:
+                world.set_block(pos, dirt)
+                new_nbt = world.get_nbt(pos)
+            return new_nbt
+    ###
+    
+    grass = GrassifyBlock(0, "grass")
+    grass.id = block_mgr.register_block(grass)
+    grass.opacity = 255
+    grass.status = 0x01
+    
+    for i in range(6):
+        grass.set_face_texture(i, dirt_tex_id)
+    
     light_block_img = make_noise_texture((158, 198, 253), 2, seed=34)
     np.array(light_block_img, copy=False)[0, :] = (100, 110, 120, 255)
     np.array(light_block_img, copy=False)[15, :] = (100, 110, 120, 255)
@@ -210,6 +241,7 @@ def test_renderer():
     # Чанки и рельеф
     # ------------------------------------------------------------------
     world = wm.World(block_mgr, tex_blocks_mgr, tex_mgr)
+    world.reshuffle_slow_tick_sequence()
     Y, X = 8, 8
     for y in range(2*Y+1):
         for x in range(2*X+1):
@@ -236,11 +268,14 @@ def test_renderer():
     #     for z in range(64):
     #         world.set_block(vm.Vec3i(x, 15, z), dirt)
     # ###
-
+    
     ###
     for x in range(256):
         for z in range(256):
-            world.set_block(vm.Vec3i(x, 15, z), dirt)
+            if random.randint(0, 10) < 4:
+                world.set_block(vm.Vec3i(x, 15, z), dirt)
+            else:
+                world.set_block(vm.Vec3i(x, 15, z), grass)
     ###
     
     # Небольшие стенки для проверки теней/границ чанков.

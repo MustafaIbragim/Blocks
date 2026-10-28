@@ -125,7 +125,13 @@ PYBIND11_MODULE(chunk_module, m) {
         .def("local_to_world", &Chunk::local_to_world, py::arg("x"), py::arg("y"), py::arg("z"))
         
         .def("tick_all", &Chunk::tick_all, py::arg("tick"), py::arg("block_mgr"))
-        .def("slow_tick", &Chunk::slow_tick, py::arg("global_tick"), py::arg("tick_counter"), py::arg("block_mgr"))
+        .def("slow_tick",
+             static_cast<void (Chunk::*)(uint64_t, const std::vector<uint32_t>&,
+                                         const BlockManager&)>(
+                 &Chunk::slow_tick),
+             py::arg("global_tick"), py::arg("global_indices"),
+             py::arg("block_mgr"),
+             "Обновляет блоки чанка по переданным глобальным индексам")
         
         .def_property_readonly("nuggets", [](Chunk& c) {
             py::list l;

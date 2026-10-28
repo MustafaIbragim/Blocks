@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 #include <array>
@@ -66,7 +67,10 @@ public:
     void remove_slow_tick_block(uint16_t local_index);
     
     void tick_all(uint64_t tick, const BlockManager& block_mgr);
-    void slow_tick(uint64_t global_tick, uint32_t tick_counter, const BlockManager& block_mgr);
+
+    // Обновляет один блок nugget'а по локальному индексу 0..32767.
+    void slow_tick(uint64_t global_tick, uint32_t local_index,
+                   const BlockManager& block_mgr);
 };
 
 
@@ -164,5 +168,12 @@ public:
     Vec3i local_to_world(uint8_t x, uint16_t y, uint8_t z) const;
     
     void tick_all(uint64_t tick, const BlockManager& block_mgr);
-    void slow_tick(uint64_t global_tick, uint32_t tick_counter, const BlockManager& block_mgr);
+
+    // Получает общую для мира пачку глобальных индексов и обновляет
+    // соответствующие блоки этого чанка.
+    void slow_tick(uint64_t global_tick, const uint32_t* global_indices,
+                   size_t count, const BlockManager& block_mgr);
+    void slow_tick(uint64_t global_tick,
+                   const std::vector<uint32_t>& global_indices,
+                   const BlockManager& block_mgr);
 };

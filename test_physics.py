@@ -290,6 +290,88 @@ def test_wall_sliding():
 
 
 # ---------------------------------------------------------------------------
+# 5b. Частичное обновление блоков: общая перестановка индексов World
+# ---------------------------------------------------------------------------
+def test_slow_tick():
+    block_mgr = bm.BlockManager()
+    tex_blocks_mgr = tm.TextureBlocksManager()
+    tex_mgr = tm.TextureManager()
+    world = wm.World(block_mgr, tex_blocks_mgr, tex_mgr)
+
+    for cx in range(2):
+        for cz in range(2):
+            world.set_chunk(vm.Vec2i(cx, cz), cm.Chunk(vm.Vec2i(cx, cz)))
+
+    sequence = np.asarray(world.slow_tick_sequence_np)
+    expected = np.arange(world.SLOW_TICK_BLOCK_COUNT, dtype=np.uint32)
+    assert sequence.shape == expected.shape
+    assert sequence.dtype == np.uint32
+    assert np.array_equal(np.sort(sequence), expected), \
+        "slow_tick_sequence_np должен быть перестановкой всех индексов"
+
+    grass = bm.Block(0, "grass")
+    grass.status = 1
+    grass.opacity = 255
+    grass.id = block_mgr.register_block(grass)
+
+    calls = []
+
+    class GrassifyBlock(bm.Block):
+        def on_slow_tick(self, pos, tick, nbt=0):
+            calls.append((pos.x, pos.y, pos.z, tick, nbt))
+            # Рекурсивный вызов из Python-подкласса обратно в World.
+            neighbor = world.get_block(vm.Vec3i(pos.x + 1, pos.y, pos.z))
+            if neighbor is not None and neighbor.name == "grass":
+                world.set_block(pos, grass)
+            return (nbt + 1) & 0xFFFF
+
+    target = GrassifyBlock(0, "grassify")
+    target.status = 1
+    target.opacity = 255
+    target.id = block_mgr.register_block(target)
+
+    target_pos = vm.Vec3i(5, 20, 5)
+    world.set_block(target_pos, target)
+    world.set_block(vm.Vec3i(6, 20, 5), grass)
+
+    target_index = cm.Chunk.coords_to_global_index(5, 20, 5)
+    sequence[:world.SLOW_TICK_BATCH_SIZE] = target_index
+    world.slow_tick_cursor = 0
+    world.slow_tick(123)
+
+    assert calls and calls[0][:4] == (5, 20, 5, 123)
+    assert world.get_block(target_pos).name == "grass"
+    assert world.get_nbt(target_pos) == 1
+    assert world.slow_tick_cursor == world.SLOW_TICK_BATCH_SIZE
+
+    # Тот же механизм должен запускаться автоматическим тактом World.
+    second_pos = vm.Vec3i(7, 20, 7)
+    world.set_block(second_pos, target)
+    world.set_block(vm.Vec3i(8, 20, 7), grass)
+
+    second_index = cm.Chunk.coords_to_global_index(7, 20, 7)
+    sequence[:world.SLOW_TICK_BATCH_SIZE] = second_index
+    world.slow_tick_cursor = 0
+    world.update(1.0)
+
+    assert world.get_block(second_pos).name == "grass"
+    assert world.slow_tick_cursor == world.SLOW_TICK_BATCH_SIZE
+    assert len(calls) == 2
+
+    # Конец массива: следующий вызов пересобирает перестановку и начинает
+    # цикл с нуля.
+    world.slow_tick_cursor = (world.SLOW_TICK_BLOCK_COUNT -
+                              world.SLOW_TICK_BATCH_SIZE)
+    world.slow_tick(0)
+    assert world.slow_tick_cursor == world.SLOW_TICK_BLOCK_COUNT
+    world.slow_tick(0)
+    assert world.slow_tick_cursor == world.SLOW_TICK_BATCH_SIZE
+    assert np.array_equal(np.sort(sequence), expected)
+
+    print("  Slow tick: перестановка, 32 индекса/такт и Python-блок OK")
+
+
+# ---------------------------------------------------------------------------
 # 5c. Освещение мешей сущностей по Chunk::light_data
 # ---------------------------------------------------------------------------
 def test_mesh_lighting():
@@ -636,6 +718,7 @@ def main():
     test_voxel_world_collision()
     test_no_upward_push_on_wall_touch()
     test_wall_sliding()
+    test_slow_tick()
     test_mesh_lighting()
     test_chunk_border_lighting()
     test_chunk_light_dirty_propagation()

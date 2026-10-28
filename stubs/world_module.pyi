@@ -1,5 +1,7 @@
 from typing import Callable, Optional, Tuple
 
+import numpy as np
+
 from block_module import Block, BlockManager
 from chunk_module import Chunk
 from item_module import Inventory, ItemEntity, ItemStack
@@ -10,6 +12,9 @@ from vec_module import Vec2i, Vec3f, Vec3i
 
 
 class World:
+    SLOW_TICK_BLOCK_COUNT: int
+    SLOW_TICK_BATCH_SIZE: int
+
     def __init__(
         self,
         block_mgr: BlockManager,
@@ -82,7 +87,14 @@ class World:
 
     # Тики
     def tick_all(self, tick: int) -> None: ...
-    def slow_tick(self, global_tick: int, tick_counter: int) -> None: ...
+    def slow_tick(self, global_tick: int, tick_counter: int = 0) -> None: ...
+    def reshuffle_slow_tick_sequence(self) -> None: ...
+    @property
+    def slow_tick_cursor(self) -> int: ...
+    @slow_tick_cursor.setter
+    def slow_tick_cursor(self, value: int) -> None: ...
+    @property
+    def slow_tick_sequence_np(self) -> np.ndarray: ...
 
     # Доступ к менеджерам
     def get_tex_blocks_mgr(self) -> TextureBlocksManager: ...

@@ -2,12 +2,16 @@
 #include "chunk_mesher.h"
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <stdexcept>
 
 
 World::World(BlockManager& block_mgr, TextureBlocksManager& tex_blocks_mgr, TextureManager& tex_mgr)
     : block_mgr(block_mgr), tex_blocks_mgr(tex_blocks_mgr), tex_mgr(tex_mgr),
-      light_engine(std::make_unique<LightEngine>(*this)) {}
+      light_engine(std::make_unique<LightEngine>(*this)),
+      slow_tick_rng(std::random_device{}()) {
+    reshuffle_slow_tick_sequence();
+}
 
 std::shared_ptr<Chunk> World::get_chunk(const Vec2i& chunk_pos) {
     auto it = chunks.find(chunk_pos);
@@ -397,6 +401,10 @@ void World::update(float delta_time) {
     }
     update_accumulator = 0.0f;
 
+    // Частичное обновление блоков. Оно может изменить блоки/NBT, поэтому
+    // выполняется до пересчёта света и пересборки мешей.
+    slow_tick(slow_tick_tick++);
+
     // Обязательный шаг №1: сначала освещение. Оно само сообщит,
     // в каких nugget'ах свет изменился.
     update_lighting();
@@ -471,9 +479,32 @@ void World::tick_all(uint64_t tick) {
 }
 
 void World::slow_tick(uint64_t global_tick, uint32_t tick_counter) {
-    for (auto& [pos, chunk] : chunks) {
-        chunk->slow_tick(global_tick, tick_counter, block_mgr);
+    (void)tick_counter;  // Оставлен только для совместимости старого API.
+
+    if (slow_tick_cursor + SLOW_TICK_BATCH_SIZE > SLOW_TICK_BLOCK_COUNT) {
+        reshuffle_slow_tick_sequence();
     }
+
+    const uint32_t* batch = slow_tick_sequence.data() + slow_tick_cursor;
+    for (auto& [pos, chunk] : chunks) {
+        if (chunk) {
+            chunk->slow_tick(global_tick, batch, SLOW_TICK_BATCH_SIZE,
+                             block_mgr);
+        }
+    }
+    slow_tick_cursor += SLOW_TICK_BATCH_SIZE;
+}
+
+void World::reshuffle_slow_tick_sequence() {
+    std::iota(slow_tick_sequence.begin(), slow_tick_sequence.end(), 0u);
+    std::shuffle(slow_tick_sequence.begin(), slow_tick_sequence.end(),
+                 slow_tick_rng);
+    slow_tick_cursor = 0;
+}
+
+void World::set_slow_tick_cursor(uint32_t cursor) {
+    slow_tick_cursor =
+        std::min(cursor, static_cast<uint32_t>(SLOW_TICK_BLOCK_COUNT));
 }
 
 void World::mark_horizontal_neighbors_dirty(const Vec2i& pos) {

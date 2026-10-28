@@ -125,26 +125,25 @@ void ChunkNugget::tick_all(uint64_t tick, const BlockManager& block_mgr) {
     }
 }
 
-void ChunkNugget::slow_tick(uint64_t global_tick, uint32_t tick_counter, const BlockManager& block_mgr) {
-    if (!parent || slow_tick_indices.empty()) return;
-    
+void ChunkNugget::slow_tick(uint64_t global_tick, uint32_t local_index,
+                            const BlockManager& block_mgr) {
+    if (!parent || local_index >= BLOCKS_COUNT) return;
+
+    uint16_t id = block_ids[local_index];
+    if (id == 0) return;
+
+    const Block* block = block_mgr.get_block_raw(id);
+    if (!block) return;
+
     int32_t base_world_x = parent->chunk_xz.x * SIZE;
     int32_t base_world_y = local_y_index * SIZE;
     int32_t base_world_z = parent->chunk_xz.y * SIZE;
-    
-    uint64_t start = global_tick % tick_counter;
-    for (uint64_t i = start; i < slow_tick_indices.size(); i += tick_counter) {
-        uint16_t index = slow_tick_indices[i];
-        uint16_t id = block_ids[index];
-        if (id == 0) continue;
 
-        const Block* block = block_mgr.get_block_raw(id);
-        if (!block) continue;
-
-        Vec3i local = index_to_coords(index);
-        Vec3i world_pos(base_world_x + local.x, base_world_y + local.y, base_world_z + local.z);
-        nbt_data[index] = block->on_slow_tick(world_pos, global_tick, nbt_data[index]);
-    }
+    Vec3i local = index_to_coords(static_cast<uint16_t>(local_index));
+    Vec3i world_pos(base_world_x + local.x, base_world_y + local.y,
+                    base_world_z + local.z);
+    nbt_data[local_index] =
+        block->on_slow_tick(world_pos, global_tick, nbt_data[local_index]);
 }
 
 
@@ -304,8 +303,30 @@ void Chunk::tick_all(uint64_t tick, const BlockManager& block_mgr) {
     }
 }
 
-void Chunk::slow_tick(uint64_t global_tick, uint32_t tick_counter, const BlockManager& block_mgr) {
-    for (auto& nugget : nuggets) {
-        nugget.slow_tick(global_tick, tick_counter, block_mgr);
+void Chunk::slow_tick(uint64_t global_tick, const uint32_t* global_indices,
+                      size_t count, const BlockManager& block_mgr) {
+    if (!global_indices) return;
+
+    for (size_t i = 0; i < count; ++i) {
+        const uint32_t global_index = global_indices[i];
+        if (global_index >= VOLUME) continue;
+
+        const uint32_t x = global_index % SIZE_XZ;
+        const uint32_t y = (global_index / SIZE_XZ) % HEIGHT;
+        const uint32_t z = global_index / (SIZE_XZ * HEIGHT);
+
+        ChunkNugget& nugget = nuggets[y / ChunkNugget::SIZE];
+        const uint32_t local_y = y % ChunkNugget::SIZE;
+        const uint16_t local_index = ChunkNugget::coords_to_index(
+            static_cast<uint8_t>(x), static_cast<uint8_t>(local_y),
+            static_cast<uint8_t>(z));
+        nugget.slow_tick(global_tick, local_index, block_mgr);
     }
+}
+
+void Chunk::slow_tick(uint64_t global_tick,
+                      const std::vector<uint32_t>& global_indices,
+                      const BlockManager& block_mgr) {
+    slow_tick(global_tick, global_indices.data(), global_indices.size(),
+              block_mgr);
 }

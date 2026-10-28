@@ -1,7 +1,10 @@
 #pragma once
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <random>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -131,7 +134,28 @@ public:
     void set_mesh_update_callback(MeshUpdateCallback callback);
     
     void tick_all(uint64_t tick);
-    void slow_tick(uint64_t global_tick, uint32_t tick_counter);
+
+    // Частичное обновление блоков. Мир хранит одну перестановку всех
+    // локальных индексов чанка (32*512*32) и на каждом такте рассылает
+    // следующие SLOW_TICK_BATCH_SIZE индексов во ВСЕ загруженные чанки.
+    // Второй аргумент оставлен для совместимости со старым API и не влияет
+    // на выбор блоков.
+    static constexpr uint32_t SLOW_TICK_BLOCK_COUNT = Chunk::VOLUME;
+    static constexpr uint32_t SLOW_TICK_BATCH_SIZE = 32;
+
+    void slow_tick(uint64_t global_tick, uint32_t tick_counter = 0);
+
+    // Пересобрать перестановку и начать цикл с начала.
+    void reshuffle_slow_tick_sequence();
+
+    uint32_t get_slow_tick_cursor() const { return slow_tick_cursor; }
+    void set_slow_tick_cursor(uint32_t cursor);
+
+    const std::array<uint32_t, SLOW_TICK_BLOCK_COUNT>&
+    get_slow_tick_sequence() const { return slow_tick_sequence; }
+
+    std::array<uint32_t, SLOW_TICK_BLOCK_COUNT>&
+    get_slow_tick_sequence() { return slow_tick_sequence; }
     
     BlockManager& get_block_mgr() const { return block_mgr; }
     TextureBlocksManager& get_tex_blocks_mgr() const { return tex_blocks_mgr; }
@@ -153,6 +177,12 @@ private:
 
     float update_accumulator = 0.0f;
     MeshUpdateCallback mesh_update_callback;
+
+    // Одна перестановка 0..SLOW_TICK_BLOCK_COUNT-1, общая для всех чанков.
+    std::array<uint32_t, SLOW_TICK_BLOCK_COUNT> slow_tick_sequence;
+    uint32_t slow_tick_cursor = 0;
+    uint64_t slow_tick_tick = 0;
+    std::mt19937 slow_tick_rng;
 
     void link_horizontal_neighbors(const Vec2i& chunk_pos);
     void unlink_horizontal_neighbors(const Vec2i& chunk_pos);
