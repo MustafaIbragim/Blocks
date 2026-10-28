@@ -1,10 +1,44 @@
-from typing import Optional, overload
-from vec_module import Vec3i
+from __future__ import annotations
+
+from typing import ClassVar, List, Optional, overload
+from vec_module import Vec3i, Vertex, FaceData
 from mesh_module import Mesh
 from collision_module import CollisionMesh
 
 
+class BlockNeighbor:
+    block: Optional[Block]
+    nbt: int
+    is_cube: bool
+
+    @overload
+    def __init__(self) -> None: ...
+    @overload
+    def __init__(
+        self, block: Optional[Block], nbt: int = 0, is_cube: bool = False
+    ) -> None: ...
+
+    def __repr__(self) -> str: ...
+
+
+class BlockMeshData:
+    vertices: List[Vertex]
+    faces: List[FaceData]
+    layers_are_texture_ids: bool
+
+    def __init__(self) -> None: ...
+
+    def add_vertex(self, vertex: Vertex) -> None: ...
+    def add_face(self, face: FaceData) -> None: ...
+    def clear(self) -> None: ...
+
+    def __repr__(self) -> str: ...
+
+
 class Block:
+    NEIGHBOR_COUNT: ClassVar[int]
+    LIGHT_CUBE_SIZE: ClassVar[int]
+
     id: int
     opacity: int
     light: int
@@ -21,6 +55,28 @@ class Block:
     
     def set_inner_mesh(self, mesh: Mesh) -> None: ...
     def get_inner_mesh(self, nbt: int = 0) -> Optional[Mesh]: ...
+
+    def build_geometry(
+        self,
+        world_pos: Vec3i,
+        nbt: int,
+        neighbors: List[BlockNeighbor],
+        light_cube: List[int],
+    ) -> BlockMeshData: ...
+    def build_cube_geometry(
+        self,
+        world_pos: Vec3i,
+        nbt: int,
+        neighbors: List[BlockNeighbor],
+        light_cube: List[int],
+    ) -> BlockMeshData: ...
+
+    @staticmethod
+    def light_cube_index(dx: int, dy: int, dz: int) -> int: ...
+    @staticmethod
+    def vertex_light_from_cube(
+        light_cube: List[int], cx: int, cy: int, cz: int
+    ) -> int: ...
     
     def build_collision_mesh_from_inner(self) -> None: ...
     def get_collision_mesh(self, nbt: int = 0) -> Optional[CollisionMesh]: ...
@@ -53,5 +109,3 @@ class BlockManager:
     def get_air_id(self) -> int: ...
     
     def __repr__(self) -> str: ...
-
-

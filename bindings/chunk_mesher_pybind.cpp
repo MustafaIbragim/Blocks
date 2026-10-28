@@ -20,7 +20,8 @@ PYBIND11_MODULE(chunk_mesher_module, m) {
     py::class_<ChunkMesher>(m, "ChunkMesher")
         .def_static("build_mesh", &ChunkMesher::build_mesh,
                     py::arg("chunk"), py::arg("block_mgr"), py::arg("tex_mgr"),
-                    "Строит меш для чанка с face culling и поддержкой inner mesh")
+                    "Строит меш чанка: блоки сами возвращают свою геометрию "
+                    "(Block::build_geometry)")
         .def("__repr__", [](const ChunkMesher&) {
             return "ChunkMesher(static class)";
         });

@@ -39,6 +39,24 @@ public:
     std::shared_ptr<Mesh> get_inner_mesh(uint16_t nbt) const override {
         PYBIND11_OVERRIDE(std::shared_ptr<Mesh>, Block, get_inner_mesh, nbt);
     }
+    BlockMeshData build_geometry(
+        const Vec3i& world_pos,
+        uint16_t nbt,
+        const std::array<BlockNeighbor, Block::NEIGHBOR_COUNT>& neighbors,
+        const std::array<uint8_t, Block::LIGHT_CUBE_SIZE>& light_cube
+    ) const override {
+        PYBIND11_OVERRIDE(BlockMeshData, Block, build_geometry,
+                          world_pos, nbt, neighbors, light_cube);
+    }
+    BlockMeshData build_cube_geometry(
+        const Vec3i& world_pos,
+        uint16_t nbt,
+        const std::array<BlockNeighbor, Block::NEIGHBOR_COUNT>& neighbors,
+        const std::array<uint8_t, Block::LIGHT_CUBE_SIZE>& light_cube
+    ) const override {
+        PYBIND11_OVERRIDE(BlockMeshData, Block, build_cube_geometry,
+                          world_pos, nbt, neighbors, light_cube);
+    }
     bool is_solid(uint16_t nbt) const override {
         PYBIND11_OVERRIDE(bool, Block, is_solid, nbt);
     }
@@ -72,6 +90,21 @@ PYBIND11_MODULE(block_module, m) {
              py::arg("face"), py::arg("nbt") = 0)
         .def("set_inner_mesh", &Block::set_inner_mesh, py::arg("mesh"))
         .def("get_inner_mesh", &Block::get_inner_mesh, py::arg("nbt") = 0)
+        .def_readonly_static("NEIGHBOR_COUNT", &Block::NEIGHBOR_COUNT)
+        .def_readonly_static("LIGHT_CUBE_SIZE", &Block::LIGHT_CUBE_SIZE)
+        .def_static("light_cube_index", &Block::light_cube_index,
+                    py::arg("dx"), py::arg("dy"), py::arg("dz"))
+        .def("build_geometry", &Block::build_geometry,
+             py::arg("world_pos"), py::arg("nbt"),
+             py::arg("neighbors"), py::arg("light_cube"),
+             "Строит геометрию блока по 6 соседям, позиции и кубу света 3x3x3")
+        .def("build_cube_geometry", &Block::build_cube_geometry,
+             py::arg("world_pos"), py::arg("nbt"),
+             py::arg("neighbors"), py::arg("light_cube"),
+             "Готовая геометрия куба с отсечением граней и светом вершин")
+        .def_static("vertex_light_from_cube", &Block::vertex_light_from_cube,
+                    py::arg("light_cube"), py::arg("cx"), py::arg("cy"), py::arg("cz"),
+                    "Средний свет угла куба (cx, cy, cz ∈ {0,1})")
         .def("build_collision_mesh_from_inner",
              &Block::build_collision_mesh_from_inner,
              "Строит физический CollisionMesh из визуального inner-меша")
@@ -94,6 +127,40 @@ PYBIND11_MODULE(block_module, m) {
         .def("__repr__", [](const Block& b) {
             return "Block(id=" + std::to_string(b.id) + 
                    ", name='" + b.name + "')";
+        });
+
+    py::class_<BlockNeighbor>(m, "BlockNeighbor")
+        .def(py::init<>())
+        .def(py::init<std::shared_ptr<Block>, uint16_t, bool>(),
+             py::arg("block"), py::arg("nbt") = 0, py::arg("is_cube") = false)
+        .def_readwrite("block", &BlockNeighbor::block)
+        .def_readwrite("nbt", &BlockNeighbor::nbt)
+        .def_readwrite("is_cube", &BlockNeighbor::is_cube)
+        .def("__repr__", [](const BlockNeighbor& n) {
+            return "BlockNeighbor(block=" +
+                   (n.block ? ("'" + n.block->name + "'") : std::string("None")) +
+                   ", nbt=" + std::to_string(n.nbt) +
+                   ", is_cube=" + (n.is_cube ? "True" : "False") + ")";
+        });
+
+    py::class_<BlockMeshData>(m, "BlockMeshData")
+        .def(py::init<>())
+        .def_readwrite("vertices", &BlockMeshData::vertices)
+        .def_readwrite("faces", &BlockMeshData::faces)
+        .def_readwrite("layers_are_texture_ids",
+                       &BlockMeshData::layers_are_texture_ids)
+        .def("add_vertex", &BlockMeshData::add_vertex, py::arg("vertex"),
+             "Добавляет вершину в конец списка vertices")
+        .def("add_face", &BlockMeshData::add_face, py::arg("face"),
+             "Добавляет треугольник в конец списка faces")
+        .def("clear", &BlockMeshData::clear,
+             "Очищает vertices и faces")
+        .def("__repr__", [](const BlockMeshData& d) {
+            return "BlockMeshData(vertices=" +
+                   std::to_string(d.vertices.size()) +
+                   ", faces=" + std::to_string(d.faces.size()) +
+                   ", layers_are_texture_ids=" +
+                   (d.layers_are_texture_ids ? "True" : "False") + ")";
         });
     
     py::class_<BlockManager, std::shared_ptr<BlockManager>>(m, "BlockManager")

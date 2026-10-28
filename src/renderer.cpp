@@ -196,6 +196,13 @@ void Renderer::compile_shaders() {
             
             vec4 color = texture(uTextureArray, vec3(vUV, actualLayer));
             
+            // Отрезаем прозрачные пиксели текстуры (alpha cutout): это
+            // позволяет делать в блоках отверстия/растительность без
+            // включения смешивания и без сортировки граней.
+            if (color.a < 0.5) {
+                discard;
+            }
+
             // Применяем минимальное освещение и свет блока
             float final_light = u_min_light + (1.0 - u_min_light) * vBlockLight;
             FragColor = color * vec4(final_light, final_light, final_light, 1.0);

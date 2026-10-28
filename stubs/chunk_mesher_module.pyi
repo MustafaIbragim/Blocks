@@ -10,6 +10,8 @@ class ChunkMesher:
     @staticmethod
     def build_mesh(
         chunk: Chunk, block_mgr: BlockManager, tex_mgr: TextureBlocksManager
-    ) -> Optional[Mesh]: ...
+    ) -> Optional[Mesh]:
+        """Строит меш чанка; геометрию каждого блока возвращает Block.build_geometry."""
+        ...
 
     def __repr__(self) -> str: ...
