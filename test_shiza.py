@@ -62,6 +62,7 @@ def test_renderer():
     import camera_module as cam
     import collision_module as pm
     import item_module as items
+    import light_engine_module as lem
     
     # ------------------------------------------------------------------
     # Быстрые проверки хранилища: NBT как uint16, обратная запись из блока
@@ -159,7 +160,10 @@ def test_renderer():
                             c_z = pos.z >> 5
                             chunk = world.get_chunk(vm.Vec2i(c_x, c_z))
                             if isinstance(chunk, cm.Chunk):
-                                light = max(light, chunk.get_light(pos.x - (c_x << 5), pos.y + 1, pos.z - (c_z << 5)))
+                                l_0 = chunk.get_light(pos.x - (c_x << 5), pos.y + 1, pos.z - (c_z << 5))
+                                l_1 = chunk.get_sky_light(pos.x - (c_x << 5), pos.y + 1, pos.z - (c_z << 5))
+                                l_2 = int(l_1 * day_light_factor(tick))
+                                light = max(light, l_0, l_2)
             
             new_nbt = nbt + random.randint(light // 8, light)
             
