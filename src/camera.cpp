@@ -26,9 +26,9 @@ void Camera::update(uint32_t tick) {
     sync_view_from_transform();
 }
 
-void Camera::render(uint64_t current_tick, float min_light) {
+void Camera::render(uint64_t current_tick, float min_light, float day_light) {
     if (!renderer) {
         return;
     }
-    renderer->render(current_tick, view, min_light);
+    renderer->render(current_tick, view, min_light, day_light);
 }

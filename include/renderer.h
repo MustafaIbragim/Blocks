@@ -14,12 +14,14 @@
 
 
 // GPU-формат грани: одна запись на каждый угол треугольника
-// (uv этого угла + layer/anim всей грани). Stride = 16 байт.
+// (uv этого угла, цвет угла и layer/anim всей грани). Stride = 20 байт.
 struct GPUFaceAttr {
     float u, v;
+    uint8_t r, g, b, a;
     int32_t layer;
     uint32_t anim_data;
 };
+static_assert(sizeof(GPUFaceAttr) == 20, "GPUFaceAttr must be 20 bytes");
 
 
 // Camera-facing quad с обычной 2D-текстурой. Используется для иконок
@@ -65,7 +67,9 @@ public:
     void upload_mesh(uint32_t mesh_id, const Mesh& mesh);
     void remove_mesh(uint32_t mesh_id);
     
-    void render(uint64_t current_tick, const ViewCam& camera, float min_light);
+    // day_light: 0 — ночь (небесный свет не используется), 1 — день.
+    void render(uint64_t current_tick, const ViewCam& camera, float min_light,
+                float day_light = 1.0f);
 
     // Рисует набор 3D-мешей после основного прохода. Текстуры должны быть
     // загружены заранее через upload_texture(texture_id, image). Меши

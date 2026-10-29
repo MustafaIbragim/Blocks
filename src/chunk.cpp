@@ -158,8 +158,11 @@ Chunk::Chunk(const Vec2i& xz) : chunk_xz(xz) {
     
     opacity_data.fill(0);
     light_data.fill(0);
+    sky_light_data.fill(0);
     light_queue_level.fill(0);
+    sky_light_queue_level.fill(0);
     light_dirty.fill(0);
+    sky_light_dirty.fill(0);
     cube_flags.fill(0);
     
     for (size_t i = 0; i < NUGGETS_COUNT; ++i) {

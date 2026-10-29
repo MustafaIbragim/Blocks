@@ -370,18 +370,26 @@ struct Vertex {
 #pragma pack(pop)
 static_assert(sizeof(Vertex) == 16, "Vertex must be 16 bytes");
 
-// Данные грани: UV-координаты трёх вершин треугольника + привязка к текстуре.
-// Хранится отдельно от вершин; индекс i в массиве faces соответствует
-// треугольнику indices[3*i], indices[3*i+1], indices[3*i+2].
+// Данные грани: UV-координаты трёх вершин треугольника, цвет каждого угла
+// (для градиентов/биомных оттенков) и привязка к текстуре. Хранится отдельно
+// от вершин; индекс i в массиве faces соответствует треугольнику
+// indices[3*i], indices[3*i+1], indices[3*i+2].
+//
+// По умолчанию все цвета белые (255), поэтому текстура рендерится без
+// изменений. Блок/объект может переопределить цвета отдельных углов.
 #pragma pack(push, 1)
 struct FaceData {
-    float u_0, u_1, u_2;
-    float v_0, v_1, v_2;
-    int32_t layer;      // слой в массиве текстур
-    uint32_t anim_data; // для анимации достаточно 8 бит, 32 бита — подгонка до 16 байт
+    float u_0 = 0.0f, u_1 = 0.0f, u_2 = 0.0f;
+    float v_0 = 0.0f, v_1 = 0.0f, v_2 = 0.0f;
+    uint8_t r_0 = 255, r_1 = 255, r_2 = 255;
+    uint8_t g_0 = 255, g_1 = 255, g_2 = 255;
+    uint8_t b_0 = 255, b_1 = 255, b_2 = 255;
+    int32_t layer = 0;       // слой в массиве текстур
+    uint8_t anim_data = 0;   // для анимации достаточно 8 бит
+    uint16_t padding = 0;    // выравнивание до 40 байт
 };
 #pragma pack(pop)
-static_assert(sizeof(FaceData) == 32, "FaceData must be 32 bytes");
+static_assert(sizeof(FaceData) == 40, "FaceData must be 40 bytes");
 
 class Transform {
 public:

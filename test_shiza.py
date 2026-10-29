@@ -26,6 +26,26 @@ MOUSE_BUTTON_RIGHT = 1
 import numpy as np
 
 
+# Полный цикл 4800 тактов (4 минуты при 20 TPS):
+# 20 с рассвета, 1:40 дня, 20 с заката и 1:40 ночи.
+DAY_CYCLE_TICKS = 4800
+DAWN_TICKS = 400
+DAY_TICKS = 2000
+SUNSET_TICKS = 400
+NIGHT_TICKS = 2000
+
+
+def day_light_factor(tick):
+    phase = tick % DAY_CYCLE_TICKS
+    if phase < DAWN_TICKS:
+        return phase / DAWN_TICKS
+    if phase < DAWN_TICKS + DAY_TICKS:
+        return 1.0
+    if phase < DAWN_TICKS + DAY_TICKS + SUNSET_TICKS:
+        return 1.0 - (phase - DAWN_TICKS - DAY_TICKS) / SUNSET_TICKS
+    return 0.0
+
+
 def test_renderer():
     print("=== Renderer + Input + Camera/Dummy + C++ Raycast ===")
     
@@ -278,6 +298,17 @@ def test_renderer():
                 world.set_block(vm.Vec3i(x, 15, z), grass)
     ###
     
+    ###
+    for x in range(256):
+        for z in range(256):
+            if x==40 and z==40:
+                continue
+            if random.randint(0, 10) < 4:
+                world.set_block(vm.Vec3i(x, 30, z), dirt)
+            else:
+                world.set_block(vm.Vec3i(x, 30, z), grass)
+    ###
+    
     # Небольшие стенки для проверки теней/границ чанков.
     world.set_block(vm.Vec3i(15, 17, 15), dirt)
     world.set_block(vm.Vec3i(12, 17, 15), dirt)
@@ -362,6 +393,7 @@ def test_renderer():
 
     last_time = time.time()
     tick = 0
+    day_tick_accum = 0.0
     fps_counter = 0
     fps_time = 0.0
     last_break = 0.0
@@ -371,6 +403,8 @@ def test_renderer():
         now = time.time()
         dt = min(now - last_time, 0.05)
         last_time = now
+        # День/ночь идут по игровым тактам (20 TPS), а не по кадрам.
+        day_tick_accum += dt * 20.0
 
         fps_counter += 1
         fps_time += dt
@@ -527,7 +561,7 @@ def test_renderer():
 
         # --- Рендер ---
         camera.set_view(dummy.view)
-        camera.render(tick, 0.1)
+        camera.render(tick, 0.1, day_light_factor(int(day_tick_accum)))
 
         # Выброшенные предметы: 3D-меш из Item, если он задан. Спрайт
         # остаётся запасным вариантом для предметов без геометрии.

@@ -53,7 +53,10 @@ PYBIND11_MODULE(renderer_module, m) {
         .def("remove_texture", &Renderer::remove_texture, py::arg("texture_id"))
         .def("upload_mesh", &Renderer::upload_mesh, py::arg("mesh_id"), py::arg("mesh"))
         .def("remove_mesh", &Renderer::remove_mesh, py::arg("mesh_id"))
-        .def("render", &Renderer::render, py::arg("current_tick"), py::arg("camera"), py::arg("min_light"))
+        .def("render", &Renderer::render,
+             py::arg("current_tick"), py::arg("camera"),
+             py::arg("min_light"), py::arg("day_light") = 1.0f,
+             "Рисует блоки. day_light: 0 — ночь, 1 — день.")
         .def("render_meshes", &Renderer::render_meshes,
              py::arg("instances"), py::arg("camera"),
              py::arg("min_light") = 0.1f,

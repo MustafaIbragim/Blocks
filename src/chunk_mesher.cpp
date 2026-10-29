@@ -1,4 +1,5 @@
 #include "chunk_mesher.h"
+#include <cmath>
 #include <cstdint>
 #include <stdexcept>
 
@@ -52,6 +53,90 @@ bool read_light_sample(const Chunk& chunk,
         static_cast<uint8_t>(local_z));
     light = source->light_data[index];
     return true;
+}
+
+// То же самое, но для небесного света.
+bool read_sky_light_sample(const Chunk& chunk,
+                           int32_t x, int32_t y, int32_t z,
+                           uint8_t& light) {
+    if (y < 0) {
+        light = 0;
+        return true;
+    }
+    if (y >= static_cast<int32_t>(Chunk::HEIGHT)) {
+        light = 255;
+        return true;
+    }
+
+    const Chunk* source = &chunk;
+    int32_t local_x = x;
+    int32_t local_z = z;
+
+    if (local_x < 0) {
+        source = source->get_neighbor(ChunkNeighborDir::NegX);
+        local_x += static_cast<int32_t>(Chunk::SIZE_XZ);
+    } else if (local_x >= static_cast<int32_t>(Chunk::SIZE_XZ)) {
+        source = source->get_neighbor(ChunkNeighborDir::PosX);
+        local_x -= static_cast<int32_t>(Chunk::SIZE_XZ);
+    }
+
+    if (!source) {
+        return false;
+    }
+
+    if (local_z < 0) {
+        source = source->get_neighbor(ChunkNeighborDir::NegZ);
+        local_z += static_cast<int32_t>(Chunk::SIZE_XZ);
+    } else if (local_z >= static_cast<int32_t>(Chunk::SIZE_XZ)) {
+        source = source->get_neighbor(ChunkNeighborDir::PosZ);
+        local_z -= static_cast<int32_t>(Chunk::SIZE_XZ);
+    }
+
+    if (!source ||
+        local_x < 0 || local_x >= static_cast<int32_t>(Chunk::SIZE_XZ) ||
+        local_z < 0 || local_z >= static_cast<int32_t>(Chunk::SIZE_XZ)) {
+        return false;
+    }
+
+    const uint32_t index = Chunk::coords_to_global_index(
+        static_cast<uint8_t>(local_x),
+        static_cast<uint16_t>(y),
+        static_cast<uint8_t>(local_z));
+    light = source->sky_light_data[index];
+    return true;
+}
+
+// Средний небесный свет в 8 клетках, примыкающих к вершине. Координаты
+// вершины — мировые, как и позиции в BlockMeshData.
+uint8_t sample_sky_light_at_vertex(const Chunk& chunk,
+                                   float world_x, float world_y, float world_z) {
+    const int32_t origin_x = chunk.chunk_xz.x *
+                             static_cast<int32_t>(Chunk::SIZE_XZ);
+    const int32_t origin_z = chunk.chunk_xz.y *
+                             static_cast<int32_t>(Chunk::SIZE_XZ);
+
+    const int32_t vx = static_cast<int32_t>(std::floor(world_x)) - origin_x;
+    const int32_t vy = static_cast<int32_t>(std::floor(world_y));
+    const int32_t vz = static_cast<int32_t>(std::floor(world_z)) - origin_z;
+
+    uint32_t sum = 0;
+    uint32_t count = 0;
+    for (int32_t dx = -1; dx <= 0; ++dx) {
+        for (int32_t dy = -1; dy <= 0; ++dy) {
+            for (int32_t dz = -1; dz <= 0; ++dz) {
+                uint8_t light = 0;
+                if (read_sky_light_sample(chunk, vx + dx, vy + dy,
+                                          vz + dz, light)) {
+                    sum += light;
+                    ++count;
+                }
+            }
+        }
+    }
+    if (count == 0) {
+        return 0;
+    }
+    return static_cast<uint8_t>(sum / count);
 }
 
 } // namespace
@@ -233,8 +318,16 @@ std::shared_ptr<Mesh> ChunkMesher::build_mesh(
             const std::array<uint8_t, Block::LIGHT_CUBE_SIZE> light_cube =
                 read_light_cube(chunk, ix, iy, iz);
 
-            const BlockMeshData geometry = block->build_geometry(
+            BlockMeshData geometry = block->build_geometry(
                 world_pos, nbt, neighbors, light_cube);
+
+            // Блочный свет уже посчитан в build_geometry по кубу 3x3x3.
+            // Небесный свет сэмплируем здесь: он хранится отдельно и
+            // не входит в старый интерфейс Block::build_geometry.
+            for (Vertex& vertex : geometry.vertices) {
+                vertex.sky_light = sample_sky_light_at_vertex(
+                    chunk, vertex.x, vertex.y, vertex.z);
+            }
 
             append_block_geometry(mesh, geometry, tex_blocks_mgr);
         }

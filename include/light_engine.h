@@ -40,6 +40,12 @@ public:
     // Только распространение света.
     void propagate_light();
 
+    // Дневной/небесный свет. Считается отдельно от блочного света:
+    // сверху вниз без затухания по расстоянию, но с затуханием на блоках,
+    // затем распространяется как обычный свет.
+    void remove_sky_light();
+    void propagate_sky_light();
+
     // Поставить на обновление сам блок и 26 его соседей.
     // Консервативный вариант (совместимость со старым API).
     void mark_neighborhood(Chunk& chunk, const Vec3i& local_pos);
@@ -71,6 +77,8 @@ public:
     bool has_pending() const;
     bool has_dark_pending() const;
     bool has_light_pending() const;
+    bool has_sky_dark_pending() const;
+    bool has_sky_light_pending() const;
     void clear_queues();
 
 private:
@@ -90,10 +98,13 @@ private:
 
     LevelLists dark_lists;
     LevelLists light_lists;
+    LevelLists sky_dark_lists;
+    LevelLists sky_light_lists;
 
     // Блоки, погашенные в текущем проходе. Семена для освещения ставим
     // после завершения всего затемнения, когда финальное поле света известно.
     std::vector<Entry> darkened_blocks;
+    std::vector<Entry> sky_darkened_blocks;
 
     // Затронутые nugget'ы. Храним именно nugget, а не целый чанк:
     // это позволяет точно знать область изменения, а dirty-меш ставится
@@ -123,6 +134,21 @@ private:
     uint8_t compute_light_slow(const std::array<Chunk*, 27>& chunks,
                                const std::array<uint32_t, 27>& indices) const;
 
+    // --- небесный свет ---
+    // Прямой свет неба в клетке: идёт сверху вниз, не теряя яркость на
+    // расстоянии, но вычитая opacity каждого пройденного блока (включая
+    // саму клетку). Возвращает 0, если столб полностью перекрыт.
+    uint8_t sky_column_level(const Chunk& chunk, int x, int y, int z) const;
+
+    // Заполняет прямой небесный свет для всего чанка и ставит на
+    // распространение клетки, граничащие с более тёмными областями.
+    void initialize_chunk_sky(Chunk& chunk);
+
+    // Пересчитывает столбец после изменения прозрачности блока.
+    // darker == true: блок стал менее прозрачным, свет вниз уменьшился.
+    void mark_sky_column_changed(Chunk& chunk, int x, int y, int z,
+                                 bool darker);
+
     // --- очереди ---
     void push_dark(Chunk& chunk, uint32_t index, uint8_t level);
     void push_light(Chunk& chunk, uint32_t index, uint8_t level);
@@ -130,9 +156,18 @@ private:
     void schedule_light(Chunk& chunk, uint32_t index, uint8_t level);
     void schedule_light_source(Chunk& chunk, uint32_t index);
 
+    void push_sky_dark(Chunk& chunk, uint32_t index, uint8_t level);
+    void push_sky_light(Chunk& chunk, uint32_t index, uint8_t level);
+    void schedule_sky_dark(Chunk& chunk, uint32_t index);
+    void schedule_sky_light(Chunk& chunk, uint32_t index, uint8_t level);
+
     // --- обработка ---
     void mark_nugget_changed(Chunk& chunk, uint32_t index);
     void process_dark_entry(const Entry& entry, bool fast);
     void process_light_entry(const Entry& entry, int level, bool fast);
     void seed_after_darkening();
+
+    void process_sky_dark_entry(const Entry& entry, bool fast);
+    void process_sky_light_entry(const Entry& entry, int level, bool fast);
+    void seed_sky_after_darkening();
 };

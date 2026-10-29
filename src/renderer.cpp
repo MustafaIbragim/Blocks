@@ -153,11 +153,15 @@ void Renderer::compile_shaders() {
         layout(location = 2) in vec2 aFaceUV;
         layout(location = 3) in int aLayer;
         layout(location = 4) in uint aAnimData;
+        layout(location = 5) in uint aSkyLight;
+        layout(location = 6) in vec4 aColor;
 
         out vec2 vUV;
         flat out int vLayer;
         flat out uint vAnimData;
         out float vBlockLight;
+        out float vSkyLight;
+        out vec4 vColor;
 
         uniform mat4 uView;
         uniform mat4 uProjection;
@@ -168,6 +172,8 @@ void Renderer::compile_shaders() {
             vLayer = aLayer;
             vAnimData = aAnimData;
             vBlockLight = float(aBlockLight) / 255.0;
+            vSkyLight = float(aSkyLight) / 255.0;
+            vColor = aColor;
         }
     )";
 
@@ -177,12 +183,15 @@ void Renderer::compile_shaders() {
         flat in int vLayer;
         flat in uint vAnimData;
         in float vBlockLight;
+        in float vSkyLight;
+        in vec4 vColor;
         
         out vec4 FragColor;
         
         uniform sampler2DArray uTextureArray;
         uniform uint uCurrentTick;
         uniform float u_min_light;
+        uniform float u_day_light;
         
         void main() {
             uint actualLayer = uint(vLayer);
@@ -203,9 +212,13 @@ void Renderer::compile_shaders() {
                 discard;
             }
 
-            // Применяем минимальное освещение и свет блока
-            float final_light = u_min_light + (1.0 - u_min_light) * vBlockLight;
-            FragColor = color * vec4(final_light, final_light, final_light, 1.0);
+            // Небесный свет управляется временем суток: ночью он не
+            // используется. Блочный свет (факелы и т.п.) работает всегда.
+            float sky_light = vSkyLight * clamp(u_day_light, 0.0, 1.0);
+            float light = max(vBlockLight, sky_light);
+            float final_light = u_min_light + (1.0 - u_min_light) * light;
+            FragColor = color * vColor *
+                        vec4(final_light, final_light, final_light, 1.0);
         }
     )";
     
@@ -371,10 +384,16 @@ void Renderer::upload_mesh(uint32_t mesh_id, const Mesh& mesh) {
         const float u[3] = {fd.u_0, fd.u_1, fd.u_2};
         const float v[3] = {fd.v_0, fd.v_1, fd.v_2};
 
+        const uint8_t r[3] = {fd.r_0, fd.r_1, fd.r_2};
+        const uint8_t g[3] = {fd.g_0, fd.g_1, fd.g_2};
+        const uint8_t b[3] = {fd.b_0, fd.b_1, fd.b_2};
+
         for (int corner = 0; corner < 3; ++corner) {
             const uint32_t vertex_index = mesh.indices[tri * 3 + corner];
             vertices.push_back(mesh.vertices[vertex_index]);
-            face_attrs.push_back({u[corner], v[corner], fd.layer, fd.anim_data});
+            face_attrs.push_back({u[corner], v[corner],
+                                  r[corner], g[corner], b[corner], 255,
+                                  fd.layer, fd.anim_data});
         }
     }
 
@@ -398,8 +417,12 @@ void Renderer::upload_mesh(uint32_t mesh_id, const Mesh& mesh) {
     glVertexAttribIPointer(1, 1, GL_UNSIGNED_BYTE, sizeof(Vertex), (void*)12);
     glEnableVertexAttribArray(1);
 
+    glVertexAttribIPointer(5, 1, GL_UNSIGNED_BYTE, sizeof(Vertex), (void*)13);
+    glEnableVertexAttribArray(5);
+
     // Буфер граней: на каждый угол каждого треугольника — своя запись
-    // (u, v, layer, anim_data). Порядок совпадает с порядком вершин в VBO.
+    // (u, v, r, g, b, a, layer, anim_data). Порядок совпадает с порядком
+    // вершин в VBO.
     glBindBuffer(GL_ARRAY_BUFFER, gpu_mesh.fbo);
     glBufferData(GL_ARRAY_BUFFER, face_attrs.size() * sizeof(GPUFaceAttr),
                  face_attrs.data(), GL_STATIC_DRAW);
@@ -407,11 +430,15 @@ void Renderer::upload_mesh(uint32_t mesh_id, const Mesh& mesh) {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(GPUFaceAttr), (void*)0);
     glEnableVertexAttribArray(2);
 
-    glVertexAttribIPointer(3, 1, GL_INT, sizeof(GPUFaceAttr), (void*)8);
+    glVertexAttribIPointer(3, 1, GL_INT, sizeof(GPUFaceAttr), (void*)12);
     glEnableVertexAttribArray(3);
 
-    glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, sizeof(GPUFaceAttr), (void*)12);
+    glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, sizeof(GPUFaceAttr), (void*)16);
     glEnableVertexAttribArray(4);
+
+    glVertexAttribPointer(6, 4, GL_UNSIGNED_BYTE, GL_TRUE,
+                          sizeof(GPUFaceAttr), (void*)8);
+    glEnableVertexAttribArray(6);
 
     glBindVertexArray(0);
 
@@ -428,7 +455,8 @@ void Renderer::remove_mesh(uint32_t mesh_id) {
     }
 }
 
-void Renderer::render(uint64_t current_tick, const ViewCam& camera, float min_light) {
+void Renderer::render(uint64_t current_tick, const ViewCam& camera,
+                      float min_light, float day_light) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     if (block_shader_program == 0 || block_meshes.empty()) return;
@@ -443,6 +471,8 @@ void Renderer::render(uint64_t current_tick, const ViewCam& camera, float min_li
     glUniformMatrix4fv(glGetUniformLocation(block_shader_program, "uProjection"), 1, GL_FALSE, proj);
     glUniform1ui(glGetUniformLocation(block_shader_program, "uCurrentTick"), static_cast<uint32_t>(current_tick));
     glUniform1f(glGetUniformLocation(block_shader_program, "u_min_light"), min_light);
+    glUniform1f(glGetUniformLocation(block_shader_program, "u_day_light"),
+                std::max(0.0f, std::min(1.0f, day_light)));
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D_ARRAY, block_texture_array_id);

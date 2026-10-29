@@ -85,19 +85,44 @@ PYBIND11_MODULE(mesh_module, m) {
             );
         }, "Массив вершин (N, 4): x, y, z, block_light. Без копирования.")
 
-        // Нулевая копия граней: (F, 8) float32 — u_0..u_2, v_0..v_2, layer, anim_data
+        // Грани в старом формате: (F, 8) float32 — u_0..u_2, v_0..v_2,
+        // layer, anim_data. Цвета вынесены в face_colors_np, поэтому здесь
+        // создаётся копия (layout FaceData больше не совпадает с float32).
         .def_property_readonly("faces_np", [](Mesh& self) {
-            size_t count = self.faces.size();
-            std::vector<py::ssize_t> shape = {static_cast<py::ssize_t>(count), 8};
-            std::vector<py::ssize_t> strides = {static_cast<py::ssize_t>(sizeof(FaceData)), sizeof(float)};
+            const py::ssize_t count =
+                static_cast<py::ssize_t>(self.faces.size());
+            py::array_t<float> result({count, static_cast<py::ssize_t>(8)});
+            auto out = result.mutable_unchecked<2>();
+            for (py::ssize_t i = 0; i < count; ++i) {
+                const FaceData& f = self.faces[static_cast<size_t>(i)];
+                out(i, 0) = f.u_0; out(i, 1) = f.u_1; out(i, 2) = f.u_2;
+                out(i, 3) = f.v_0; out(i, 4) = f.v_1; out(i, 5) = f.v_2;
+                out(i, 6) = static_cast<float>(f.layer);
+                out(i, 7) = static_cast<float>(f.anim_data);
+            }
+            return result;
+        }, "Массив граней (F, 8): u_0,u_1,u_2,v_0,v_1,v_2,layer,anim_data. Копия.")
 
-            return py::array_t<float>(
-                shape,
-                strides,
-                reinterpret_cast<float*>(self.faces.data()),
-                py::capsule(&self)
+        // Нулевая копия цветов: (F, 9) uint8 — r_0,r_1,r_2,g_0,g_1,g_2,
+        // b_0,b_1,b_2. Значения по умолчанию — 255 (белый, без изменения
+        // текстуры).
+        .def_property_readonly("face_colors_np", [](Mesh& self) {
+            const py::ssize_t count =
+                static_cast<py::ssize_t>(self.faces.size());
+            std::vector<py::ssize_t> shape = {
+                count, static_cast<py::ssize_t>(9)};
+            std::vector<py::ssize_t> strides = {
+                static_cast<py::ssize_t>(sizeof(FaceData)), 1};
+            uint8_t* data = nullptr;
+            if (!self.faces.empty()) {
+                data = reinterpret_cast<uint8_t*>(self.faces.data()) +
+                       offsetof(FaceData, r_0);
+            }
+            return py::array_t<uint8_t>(
+                shape, strides, data, py::capsule(&self)
             );
-        }, "Массив граней (F, 8): u_0,u_1,u_2,v_0,v_1,v_2,layer,anim_data. Без копирования.")
+        }, "Цвета углов граней (F, 9) uint8: r0,r1,r2,g0,g1,g2,b0,b1,b2. "
+           "Без копирования; по умолчанию 255.")
 
         .def("__repr__", [](const Mesh& mesh) {
             return "Mesh(vertices=" + std::to_string(mesh.vertex_count()) +

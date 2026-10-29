@@ -689,6 +689,15 @@ class FaceData:
     v_0: float
     v_1: float
     v_2: float
+    r_0: int
+    r_1: int
+    r_2: int
+    g_0: int
+    g_1: int
+    g_2: int
+    b_0: int
+    b_1: int
+    b_2: int
     layer: int
     anim_data: int
     def __init__(self) -> None: ...

@@ -25,6 +25,10 @@ PYBIND11_MODULE(light_engine_module, m) {
              "Только затемнение (снятие старого света)")
         .def("propagate_light", &LightEngine::propagate_light, 
              "Только распространение света от источников")
+        .def("remove_sky_light", &LightEngine::remove_sky_light,
+             "Только затемнение небесного света")
+        .def("propagate_sky_light", &LightEngine::propagate_sky_light,
+             "Только распространение небесного света")
         .def("mark_neighborhood", &LightEngine::mark_neighborhood, 
              py::arg("chunk"), py::arg("local_pos"),
              "Помечает блок и его 26 соседей на обновление (консервативный режим)")
@@ -50,6 +54,10 @@ PYBIND11_MODULE(light_engine_module, m) {
              "Возвращает true, если есть отложенные задачи затемнения")
         .def("has_light_pending", &LightEngine::has_light_pending,
              "Возвращает true, если есть отложенные задачи распространения света")
+        .def("has_sky_dark_pending", &LightEngine::has_sky_dark_pending,
+             "Возвращает true, если есть отложенные задачи затемнения неба")
+        .def("has_sky_light_pending", &LightEngine::has_sky_light_pending,
+             "Возвращает true, если есть отложенные задачи распространения неба")
         .def("changed_nugget_count", &LightEngine::changed_nugget_count,
              "Количество ChunkNugget с реально изменившимся светом")
         .def("clear_changed_nuggets", &LightEngine::clear_changed_nuggets,

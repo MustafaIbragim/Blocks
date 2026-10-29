@@ -427,7 +427,125 @@ def test_mesh_lighting():
 
 
 # ---------------------------------------------------------------------------
-# 5d. Освещение вершин меша чанка на стыках соседних чанков
+# 5c2. FaceData: цвета по умолчанию и цвета углов в меше
+# ---------------------------------------------------------------------------
+def test_face_data_colors():
+    face = vm.FaceData()
+    for channel in ("r", "g", "b"):
+        for corner in range(3):
+            assert getattr(face, f"{channel}_{corner}") == 255, \
+                "цвета FaceData по умолчанию должны быть белыми"
+
+    face.r_0 = 10
+    face.g_1 = 20
+    face.b_2 = 30
+    face.layer = 7
+    face.anim_data = 3
+
+    mesh = mm.Mesh()
+    mesh.add_vertex(vm.Vec3f(0.0, 0.0, 0.0))
+    mesh.add_vertex(vm.Vec3f(1.0, 0.0, 0.0))
+    mesh.add_vertex(vm.Vec3f(0.0, 1.0, 0.0))
+    mesh.add_triangle(0, 1, 2, face)
+
+    colors = np.asarray(mesh.face_colors_np)
+    assert colors.shape == (1, 9), f"неожиданная форма цветов: {colors.shape}"
+    assert colors[0, 0] == 10
+    assert colors[0, 4] == 20
+    assert colors[0, 8] == 30
+    assert colors[0, 1] == 255
+
+    faces = np.asarray(mesh.faces_np)
+    assert faces.shape == (1, 8)
+    assert int(faces[0, 6]) == 7
+    assert int(faces[0, 7]) == 3
+    print("  FaceData: белые по умолчанию, цвета углов и faces_np OK")
+
+
+# ---------------------------------------------------------------------------
+# 5d. Небесный свет: прямое распространение вниз и затухание на блоках
+# ---------------------------------------------------------------------------
+def test_sky_light():
+    block_mgr = bm.BlockManager()
+    tex_blocks_mgr = tm.TextureBlocksManager()
+    tex_mgr = tm.TextureManager()
+    world = wm.World(block_mgr, tex_blocks_mgr, tex_mgr)
+    world.set_chunk(vm.Vec2i(0, 0), cm.Chunk(vm.Vec2i(0, 0)))
+    chunk = world.get_chunk(vm.Vec2i(0, 0))
+
+    # В открытом воздухе свет неба не затухает по высоте.
+    assert chunk.get_sky_light(5, 0, 5) == 255
+    assert chunk.get_sky_light(5, 20, 5) == 255
+    assert chunk.get_sky_light(5, 511, 5) == 255
+
+    opaque = bm.Block(0, "opaque")
+    opaque.opacity = 255
+    opaque_id = block_mgr.register_block(opaque)
+    opaque = block_mgr.get_block(opaque_id)
+
+    world.set_block(vm.Vec3i(5, 20, 5), opaque)
+    world.update_lighting()
+    assert chunk.get_sky_light(5, 20, 5) == 0, \
+        "непрозрачный блок должен полностью гасить свет неба"
+    assert chunk.get_sky_light(5, 21, 5) == 255
+
+    world.remove_block(vm.Vec3i(5, 20, 5))
+    world.update_lighting()
+    assert chunk.get_sky_light(5, 20, 5) == 255, \
+        "после удаления блока свет неба должен восстановиться"
+    assert chunk.get_sky_light(5, 19, 5) == 255
+
+    # Окружаем центральный столбец непрозрачными стенами на всю высоту,
+    # чтобы проверить именно прямое затухание, без боковой подсветки.
+    for y in range(21):
+        for dx in (-1, 0, 1):
+            for dz in (-1, 0, 1):
+                if dx == 0 and dz == 0:
+                    continue
+                world.set_block(vm.Vec3i(5 + dx, y, 5 + dz), opaque)
+
+    glass = bm.Block(0, "glass")
+    glass.opacity = 100
+    glass_id = block_mgr.register_block(glass)
+    glass = block_mgr.get_block(glass_id)
+
+    world.set_block(vm.Vec3i(5, 20, 5), glass)
+    world.update_lighting()
+    assert chunk.get_sky_light(5, 20, 5) == 155, \
+        "полупрозрачный блок должен ослабить свет на свою opacity"
+    assert chunk.get_sky_light(5, 19, 5) == 155, \
+        "свет неба под полупрозрачным блоком не должен затухать по высоте"
+
+    world.set_block(vm.Vec3i(5, 19, 5), glass)
+    world.update_lighting()
+    assert chunk.get_sky_light(5, 19, 5) == 55, \
+        "opacity нескольких блоков должна суммироваться"
+
+    # В открытом столбце боковой свет тоже должен вычитать opacity самой
+    # клетки, иначе полупрозрачный блок пересвечивается до 255 - opacity.
+    world.set_block(vm.Vec3i(15, 20, 15), glass)
+    world.set_block(vm.Vec3i(15, 19, 15), glass)
+    world.update_lighting()
+    assert chunk.get_sky_light(15, 20, 15) == 155
+    assert chunk.get_sky_light(15, 19, 15) == 147, \
+        "боковой свет в полупрозрачный блок должен вычитать его opacity"
+
+    # Отложенное увеличение света отменяется, если до update() над клеткой
+    # успели поставить непрозрачный блок. Иначе старый queue-уровень
+    # восстановил бы прямой свет неба сквозь новую крышу.
+    world.set_block(vm.Vec3i(20, 20, 20), opaque)
+    world.update_lighting()
+    world.remove_block(vm.Vec3i(20, 20, 20))
+    world.set_block(vm.Vec3i(20, 21, 20), opaque)
+    world.update_lighting()
+    assert chunk.get_sky_light(20, 21, 20) == 0
+    assert chunk.get_sky_light(20, 20, 20) == 247, \
+        "отложенный прямой свет не должен проходить сквозь новую крышу"
+    print("  Sky light: 255 в воздухе, гашение и полупрозрачные блоки OK")
+
+
+# ---------------------------------------------------------------------------
+# 5d2. Освещение вершин меша чанка на стыках соседних чанков
 # ---------------------------------------------------------------------------
 def test_chunk_border_lighting():
     block_mgr = bm.BlockManager()
@@ -720,6 +838,8 @@ def main():
     test_wall_sliding()
     test_slow_tick()
     test_mesh_lighting()
+    test_face_data_colors()
+    test_sky_light()
     test_chunk_border_lighting()
     test_chunk_light_dirty_propagation()
     test_entity_fragment_split()

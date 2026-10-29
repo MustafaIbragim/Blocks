@@ -87,10 +87,15 @@ public:
     
     std::array<uint8_t, VOLUME>      opacity_data;
     std::array<uint8_t, VOLUME>      light_data;
+    // Дневной/небесный свет. Считается сверху вниз без затухания в воздухе,
+    // затем распространяется по обычным правилам освещения.
+    std::array<uint8_t, VOLUME>      sky_light_data;
     // Уровень, на котором блок стоит в очереди освещения (0 = не в очереди).
     // Нужен, чтобы при появлении более яркого пути не плодить дубликаты.
     std::array<uint8_t, VOLUME>      light_queue_level;
+    std::array<uint8_t, VOLUME>      sky_light_queue_level;
     std::array<uint64_t, FLAG_WORDS> light_dirty;
+    std::array<uint64_t, FLAG_WORDS> sky_light_dirty;
     std::array<uint64_t, FLAG_WORDS> cube_flags;
     
     std::array<Chunk*, 4> horizontal_neighbors;
@@ -135,6 +140,14 @@ public:
         light_data[coords_to_global_index(x, y, z)] = value;
     }
     
+    inline uint8_t get_sky_light(uint8_t x, uint16_t y, uint8_t z) const {
+        return sky_light_data[coords_to_global_index(x, y, z)];
+    }
+
+    inline void set_sky_light(uint8_t x, uint16_t y, uint8_t z, uint8_t value) {
+        sky_light_data[coords_to_global_index(x, y, z)] = value;
+    }
+
     inline bool is_light_dirty(uint32_t global_index) const {
         return (light_dirty[global_index >> 6] >> (global_index & 63)) & 1ULL;
     }
@@ -150,6 +163,21 @@ public:
         light_dirty.fill(0);
     }
     
+    inline bool is_sky_light_dirty(uint32_t global_index) const {
+        return (sky_light_dirty[global_index >> 6] >> (global_index & 63)) & 1ULL;
+    }
+
+    inline void mark_sky_light_dirty(uint32_t global_index, bool state) {
+        uint64_t& word = sky_light_dirty[global_index >> 6];
+        uint64_t mask = 1ULL << (global_index & 63);
+        if (state) word |= mask;
+        else word &= ~mask;
+    }
+
+    inline void clear_all_sky_light_dirty() {
+        sky_light_dirty.fill(0);
+    }
+
     inline bool is_standard_cube(uint32_t global_index) const {
         return (cube_flags[global_index >> 6] >> (global_index & 63)) & 1ULL;
     }

@@ -34,5 +34,7 @@ public:
     void update(uint32_t tick) override;
 
     // Отрисовка через сохранённый рендерер.
-    void render(uint64_t current_tick, float min_light = 0.1f);
+    // day_light: 0 — ночь, 1 — день.
+    void render(uint64_t current_tick, float min_light = 0.1f,
+                float day_light = 1.0f);
 };

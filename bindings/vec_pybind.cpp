@@ -322,11 +322,27 @@ PYBIND11_MODULE(vec_module, m) {
         .def_readwrite("v_0", &FaceData::v_0)
         .def_readwrite("v_1", &FaceData::v_1)
         .def_readwrite("v_2", &FaceData::v_2)
+        .def_readwrite("r_0", &FaceData::r_0)
+        .def_readwrite("r_1", &FaceData::r_1)
+        .def_readwrite("r_2", &FaceData::r_2)
+        .def_readwrite("g_0", &FaceData::g_0)
+        .def_readwrite("g_1", &FaceData::g_1)
+        .def_readwrite("g_2", &FaceData::g_2)
+        .def_readwrite("b_0", &FaceData::b_0)
+        .def_readwrite("b_1", &FaceData::b_1)
+        .def_readwrite("b_2", &FaceData::b_2)
         .def_readwrite("layer", &FaceData::layer)
         .def_readwrite("anim_data", &FaceData::anim_data)
         .def("__repr__", [](const FaceData& f) {
             return "FaceData(layer=" + std::to_string(f.layer) +
-                   ", anim_data=" + std::to_string(f.anim_data) + ")";
+                   ", anim_data=" + std::to_string(f.anim_data) +
+                   ", colors=(" +
+                   std::to_string(f.r_0) + "," + std::to_string(f.g_0) + "," +
+                   std::to_string(f.b_0) + "),(" +
+                   std::to_string(f.r_1) + "," + std::to_string(f.g_1) + "," +
+                   std::to_string(f.b_1) + "),(" +
+                   std::to_string(f.r_2) + "," + std::to_string(f.g_2) + "," +
+                   std::to_string(f.b_2) + "))";
         });
 
     py::class_<Transform>(m, "Transform")

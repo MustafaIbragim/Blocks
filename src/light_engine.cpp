@@ -305,6 +305,138 @@ uint8_t LightEngine::compute_light_slow(const std::array<Chunk*, 27>& chunks,
 
 
 // ============================================================================
+// Небесный (дневной) свет
+// ============================================================================
+
+uint8_t LightEngine::sky_column_level(const Chunk& chunk, int x, int y, int z) const {
+    if (y < 0) {
+        return 0;
+    }
+    if (y >= HEIGHT) {
+        return 255;
+    }
+    if (x < 0 || x >= SIZE || z < 0 || z >= SIZE) {
+        return 0;
+    }
+
+    // Свет идёт сверху вниз без потерь на расстояние. Каждый блок вычитает
+    // свою opacity (в том числе полупрозрачный). Полностью непрозрачный
+    // блок гасит столбец.
+    int level = 255;
+    const uint32_t base = static_cast<uint32_t>(x) +
+                          static_cast<uint32_t>(z) * SLICE;
+    for (int cy = HEIGHT - 1; cy >= y; --cy) {
+        const uint8_t opacity =
+            chunk.opacity_data[base + static_cast<uint32_t>(cy) * SIZE];
+        if (opacity != 0) {
+            level -= static_cast<int>(opacity);
+            if (level <= 0) {
+                return 0;
+            }
+        }
+    }
+    return static_cast<uint8_t>(level);
+}
+
+void LightEngine::initialize_chunk_sky(Chunk& chunk) {
+    // Прямой столб неба: без затухания по высоте, с вычитанием opacity.
+    for (int z = 0; z < SIZE; ++z) {
+        for (int x = 0; x < SIZE; ++x) {
+            int level = 255;
+            const uint32_t base = static_cast<uint32_t>(x) +
+                                  static_cast<uint32_t>(z) * SLICE;
+            for (int y = HEIGHT - 1; y >= 0; --y) {
+                const uint32_t index = base + static_cast<uint32_t>(y) * SIZE;
+                const uint8_t opacity = chunk.opacity_data[index];
+                if (opacity != 0) {
+                    level -= static_cast<int>(opacity);
+                    if (level < 0) level = 0;
+                }
+                chunk.sky_light_data[index] = static_cast<uint8_t>(level);
+            }
+        }
+    }
+
+    // Семена распространения: клетки на границе чанка и клетки, рядом с
+    // которыми прямой свет уже слабее. В полностью открытом воздухе это
+    // всего лишь граница, поэтому очередь не разрастается на весь объём.
+    for (int z = 0; z < SIZE; ++z) {
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < SIZE; ++x) {
+                const uint32_t index = Chunk::coords_to_global_index(
+                    static_cast<uint8_t>(x), static_cast<uint16_t>(y),
+                    static_cast<uint8_t>(z));
+                const uint8_t level = chunk.sky_light_data[index];
+                if (level == 0) continue;
+
+                bool seed = (x == 0 || x == SIZE - 1 ||
+                             z == 0 || z == SIZE - 1);
+                if (!seed) {
+                    for (int i = 0; i < 27; ++i) {
+                        if (i == CENTER) continue;
+                        const Offset& o = OFFSETS[i];
+                        const int ny = y + o.dy;
+                        if (ny < 0 || ny >= HEIGHT) continue;
+                        if (chunk.sky_light_data[index + o.delta] < level) {
+                            seed = true;
+                            break;
+                        }
+                    }
+                }
+                if (seed) schedule_sky_light(chunk, index, level);
+            }
+        }
+    }
+}
+
+void LightEngine::mark_sky_column_changed(Chunk& chunk, int x, int y, int z,
+                                          bool darker) {
+    if (x < 0 || x >= SIZE || z < 0 || z >= SIZE ||
+        y < 0 || y >= HEIGHT) {
+        return;
+    }
+
+    const uint32_t base = static_cast<uint32_t>(x) +
+                          static_cast<uint32_t>(z) * SLICE;
+
+    if (darker) {
+        // Блок стал менее прозрачным. Затемняем всё вниз, пока не встретим
+        // непрозрачный блок (ниже него прямой свет неба уже не проходит).
+        bool first = true;
+        for (int cy = y; cy >= 0; --cy) {
+            const uint32_t index = base + static_cast<uint32_t>(cy) * SIZE;
+            if (chunk.sky_light_data[index] > 0 ||
+                chunk.sky_light_queue_level[index] > 0) {
+                schedule_sky_dark(chunk, index);
+            }
+            if (!first && chunk.opacity_data[index] == 255) {
+                break;
+            }
+            first = false;
+        }
+    } else {
+        // Блок стал прозрачнее/удалён. Пересчитываем прямой столб и ставим
+        // все клетки вниз на обновление. Даже если сбоку уже есть более
+        // яркий свет, прямой свет неба всё равно должен пройти вниз.
+        int level = 255;
+        for (int cy = HEIGHT - 1; cy >= 0; --cy) {
+            const uint32_t index = base + static_cast<uint32_t>(cy) * SIZE;
+            const uint8_t opacity = chunk.opacity_data[index];
+            if (opacity != 0) {
+                level -= static_cast<int>(opacity);
+                if (level < 0) level = 0;
+            }
+            if (cy > y) continue;
+            if (level == 0) break;
+
+            schedule_sky_light(chunk, index, static_cast<uint8_t>(level));
+            if (opacity == 255) break;
+        }
+    }
+}
+
+
+// ============================================================================
 // Очереди
 // ============================================================================
 
@@ -348,6 +480,66 @@ void LightEngine::schedule_light_source(Chunk& chunk, uint32_t index) {
     schedule_light(chunk, index, level);
 }
 
+void LightEngine::push_sky_dark(Chunk& chunk, uint32_t index, uint8_t level) {
+    if (level == 0) return;
+    auto& list = can_use_fast(index)
+        ? sky_dark_lists.fast[level - 1]
+        : sky_dark_lists.slow[level - 1];
+    list.push_back({&chunk, index});
+}
+
+void LightEngine::push_sky_light(Chunk& chunk, uint32_t index, uint8_t level) {
+    if (level == 0) return;
+    auto& list = can_use_fast(index)
+        ? sky_light_lists.fast[level - 1]
+        : sky_light_lists.slow[level - 1];
+    list.push_back({&chunk, index});
+}
+
+void LightEngine::schedule_sky_dark(Chunk& chunk, uint32_t index) {
+    uint8_t level = chunk.sky_light_data[index];
+
+    // Если клетка уже стоит в очереди на распространение, эта запись
+    // устаревает: затемнение должно победить, а свет будет пересчитан
+    // заново в seed_sky_after_darkening(). Это нужно делать даже при
+    // level == 0: у клетки может быть отложенное увеличение света,
+    // которое после установки блока уже недействительно.
+    const bool had_pending = chunk.sky_light_queue_level[index] > 0;
+    if (had_pending) {
+        chunk.sky_light_queue_level[index] = 0;
+        chunk.mark_sky_light_dirty(index, false);
+    }
+    if (level == 0) {
+        if (!had_pending) return;
+        // Текущего света нет, но была отложенная запись: пересчитываем
+        // клетку служебной записью на уровне 1, чтобы seed восстановил
+        // корректное значение из прямого и бокового света.
+        chunk.mark_sky_light_dirty(index, true);
+        push_sky_dark(chunk, index, 1);
+        return;
+    }
+    if (chunk.is_sky_light_dirty(index)) return;
+
+    chunk.mark_sky_light_dirty(index, true);
+    push_sky_dark(chunk, index, level);
+}
+
+void LightEngine::schedule_sky_light(Chunk& chunk, uint32_t index, uint8_t level) {
+    if (level == 0) return;
+
+    // dirty + пустой queue означает отложенное затемнение. Свет в такую
+    // клетку не ставим: после затемнения он будет восстановлен семенем.
+    if (chunk.is_sky_light_dirty(index) &&
+        chunk.sky_light_queue_level[index] == 0) {
+        return;
+    }
+    if (level <= chunk.sky_light_queue_level[index]) return;
+
+    chunk.sky_light_queue_level[index] = level;
+    chunk.mark_sky_light_dirty(index, true);
+    push_sky_light(chunk, index, level);
+}
+
 void LightEngine::mark_neighborhood(Chunk& chunk, const Vec3i& local_pos) {
     std::array<Chunk*, 27> chunks;
     std::array<uint32_t, 27> indices;
@@ -365,6 +557,8 @@ void LightEngine::mark_neighborhood(Chunk& chunk, const Vec3i& local_pos) {
             // должен быть снят, даже если блок уже был помечен.
             target_chunk->mark_light_dirty(index, false);
             target_chunk->light_queue_level[index] = 0;
+            target_chunk->mark_sky_light_dirty(index, false);
+            target_chunk->sky_light_queue_level[index] = 0;
         }
 
         if (target_chunk->light_data[index] > 0) {
@@ -376,6 +570,19 @@ void LightEngine::mark_neighborhood(Chunk& chunk, const Vec3i& local_pos) {
             }
         } else {
             schedule_light_source(*target_chunk, index);
+        }
+
+        // Небесный свет пересчитываем консервативно для всего окружения.
+        // После затемнения seed_sky_after_darkening восстановит прямой свет
+        // столбца, даже если сбоку остался более яркий свет.
+        if (target_chunk->sky_light_data[index] > 0) {
+            schedule_sky_dark(*target_chunk, index);
+        } else {
+            const uint8_t direct = sky_column_level(
+                *target_chunk, index_x(index), index_y(index), index_z(index));
+            if (direct > 0) {
+                schedule_sky_light(*target_chunk, index, direct);
+            }
         }
     }
 }
@@ -421,9 +628,43 @@ void LightEngine::mark_block_changed(Chunk& chunk, const Vec3i& local_pos,
             schedule_light(chunk, index, level);
         }
     }
+
+    // Небесный свет зависит только от прозрачности блоков. При изменении
+    // opacity пересчитываем весь столбец вниз и 26 соседей изменённой
+    // клетки: через неё мог проходить боковой свет.
+    if (new_opacity != old_opacity) {
+        const bool darker = new_opacity > old_opacity;
+        mark_sky_column_changed(chunk, local_pos.x, local_pos.y,
+                                local_pos.z, darker);
+
+        std::array<Chunk*, 27> chunks;
+        std::array<uint32_t, 27> indices;
+        resolve_neighborhood(chunk, local_pos.x, local_pos.y, local_pos.z,
+                             chunks, indices);
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER || !chunks[i]) continue;
+            Chunk& neighbor = *chunks[i];
+            const uint32_t nindex = indices[i];
+            if (darker) {
+                if (neighbor.sky_light_data[nindex] > 0) {
+                    schedule_sky_dark(neighbor, nindex);
+                }
+            } else {
+                const uint8_t level = neighbor.sky_light_data[nindex];
+                if (level > 0) {
+                    schedule_sky_light(neighbor, nindex, level);
+                }
+            }
+        }
+    }
 }
 
 void LightEngine::mark_chunk_sources(Chunk& chunk) {
+    // При загрузке чанка сразу заполняем прямой свет неба, чтобы меш мог
+    // использовать его даже до первого update(). Распространение вбок
+    // выполнится в update().
+    initialize_chunk_sky(chunk);
+
     const BlockManager& block_mgr = world.get_block_mgr();
     for (auto& nugget : chunk.nuggets) {
         uint16_t base_y = static_cast<uint16_t>(nugget.local_y_index *
@@ -453,11 +694,17 @@ void LightEngine::mark_chunk_border(Chunk& chunk, bool allow_decrease) {
         if (allow_decrease) {
             // Свет в соседних чанках мог уменьшиться — запускаем затемнение.
             schedule_dark(chunk, index);
+            if (chunk.sky_light_data[index] > 0) {
+                schedule_sky_dark(chunk, index);
+            }
         } else {
             // Свет может только вырасти: пересчитываем клетку и даём свету
             // распространиться в только что загруженное пространство.
             uint8_t level = chunk.light_data[index];
             if (level > 0) schedule_light(chunk, index, level);
+
+            uint8_t sky = chunk.sky_light_data[index];
+            if (sky > 0) schedule_sky_light(chunk, index, sky);
         }
     };
 
@@ -486,8 +733,12 @@ void LightEngine::forget_chunk(Chunk* chunk) {
     };
     erase_from(dark_lists);
     erase_from(light_lists);
+    erase_from(sky_dark_lists);
+    erase_from(sky_light_lists);
     darkened_blocks.erase(std::remove_if(darkened_blocks.begin(), darkened_blocks.end(),
         [chunk](const Entry& e) { return e.chunk == chunk; }), darkened_blocks.end());
+    sky_darkened_blocks.erase(std::remove_if(sky_darkened_blocks.begin(), sky_darkened_blocks.end(),
+        [chunk](const Entry& e) { return e.chunk == chunk; }), sky_darkened_blocks.end());
 
     for (auto it = changed_nuggets.begin(); it != changed_nuggets.end();) {
         if (*it && (*it)->parent == chunk) {
@@ -522,7 +773,8 @@ void LightEngine::mark_nugget_changed(Chunk& chunk, uint32_t index) {
 }
 
 bool LightEngine::has_pending() const {
-    return has_dark_pending() || has_light_pending();
+    return has_dark_pending() || has_light_pending() ||
+           has_sky_dark_pending() || has_sky_light_pending();
 }
 
 bool LightEngine::has_dark_pending() const {
@@ -534,6 +786,18 @@ bool LightEngine::has_dark_pending() const {
 bool LightEngine::has_light_pending() const {
     for (const auto& list : light_lists.fast) if (!list.empty()) return true;
     for (const auto& list : light_lists.slow) if (!list.empty()) return true;
+    return false;
+}
+
+bool LightEngine::has_sky_dark_pending() const {
+    for (const auto& list : sky_dark_lists.fast) if (!list.empty()) return true;
+    for (const auto& list : sky_dark_lists.slow) if (!list.empty()) return true;
+    return false;
+}
+
+bool LightEngine::has_sky_light_pending() const {
+    for (const auto& list : sky_light_lists.fast) if (!list.empty()) return true;
+    for (const auto& list : sky_light_lists.slow) if (!list.empty()) return true;
     return false;
 }
 
@@ -559,11 +823,37 @@ void LightEngine::clear_queues() {
         }
     };
 
+    auto reset_sky_dark = [](std::array<std::vector<Entry>, LEVEL_COUNT>& lists) {
+        for (auto& list : lists) {
+            for (const Entry& entry : list) {
+                entry.chunk->mark_sky_light_dirty(entry.index, false);
+            }
+            list.clear();
+        }
+    };
+
+    auto reset_sky_light = [](std::array<std::vector<Entry>, LEVEL_COUNT>& lists) {
+        for (int level = 1; level <= LEVEL_COUNT; ++level) {
+            for (const Entry& entry : lists[level - 1]) {
+                entry.chunk->mark_sky_light_dirty(entry.index, false);
+                if (entry.chunk->sky_light_queue_level[entry.index] == level) {
+                    entry.chunk->sky_light_queue_level[entry.index] = 0;
+                }
+            }
+            lists[level - 1].clear();
+        }
+    };
+
     reset_dark(dark_lists.fast);
     reset_dark(dark_lists.slow);
     reset_light(light_lists.fast);
     reset_light(light_lists.slow);
+    reset_sky_dark(sky_dark_lists.fast);
+    reset_sky_dark(sky_dark_lists.slow);
+    reset_sky_light(sky_light_lists.fast);
+    reset_sky_light(sky_light_lists.slow);
     darkened_blocks.clear();
+    sky_darkened_blocks.clear();
 }
 
 
@@ -673,6 +963,252 @@ void LightEngine::seed_after_darkening() {
         }
     }
     darkened_blocks.clear();
+}
+
+// ============================================================================
+// Небесный свет: затемнение и распространение
+// ============================================================================
+
+void LightEngine::process_sky_dark_entry(const Entry& entry, bool fast) {
+    Chunk& chunk = *entry.chunk;
+    uint32_t index = entry.index;
+
+    uint8_t light = chunk.sky_light_data[index];
+    chunk.mark_sky_light_dirty(index, false);
+    // Любая отложенная запись на распространение для этой клетки устарела:
+    // после затемнения свет будет восстановлен через seed_sky_after_darkening.
+    chunk.sky_light_queue_level[index] = 0;
+    if (light == 0) {
+        // Служебная запись после отмены отложенного увеличения: клетку
+        // всё равно нужно пересчитать в seed_sky_after_darkening().
+        sky_darkened_blocks.push_back(entry);
+        return;
+    }
+
+    if (fast) {
+        int y = index_y(index);
+        fill_full_opacity_fast(chunk, index, y);
+
+        const uint8_t* light_data = chunk.sky_light_data.data();
+        const uint8_t* opacity_data = chunk.opacity_data.data();
+
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER) continue;
+            const Offset& o = OFFSETS[i];
+            int ny = y + o.dy;
+            if (ny < 0 || ny >= HEIGHT) continue;
+
+            uint32_t nindex = index + o.delta;
+            uint8_t nlight = light_data[nindex];
+            if (nlight == 0) continue;
+
+            int n_opacity = opacity_data[nindex];
+            int expected = static_cast<int>(light) - full_opacity[i];
+            // Для рёбер и углов full_opacity описывает соседние стороны,
+            // но не саму клетку назначения. Её opacity нужно вычесть
+            // отдельно, иначе полупрозрачный блок пересветится.
+            if (o.dist != 8) expected -= n_opacity;
+            if (nlight <= expected) schedule_sky_dark(chunk, nindex);
+        }
+    } else {
+        std::array<Chunk*, 27> chunks;
+        std::array<uint32_t, 27> indices;
+        resolve_neighborhood(chunk, index_x(index), index_y(index), index_z(index),
+                             chunks, indices);
+        fill_full_opacity_slow(chunk, index, chunks, indices);
+
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER || !chunks[i]) continue;
+            Chunk& nchunk = *chunks[i];
+            uint32_t nindex = indices[i];
+
+            uint8_t nlight = nchunk.sky_light_data[nindex];
+            if (nlight == 0) continue;
+
+            int n_opacity = nchunk.opacity_data[nindex];
+            int expected = static_cast<int>(light) - full_opacity[i];
+            if (OFFSETS[i].dist != 8) expected -= n_opacity;
+            if (nlight <= expected) schedule_sky_dark(nchunk, nindex);
+        }
+    }
+
+    chunk.sky_light_data[index] = 0;
+    mark_nugget_changed(chunk, index);
+    sky_darkened_blocks.push_back(entry);
+}
+
+void LightEngine::seed_sky_after_darkening() {
+    for (const Entry& entry : sky_darkened_blocks) {
+        Chunk& chunk = *entry.chunk;
+        uint32_t index = entry.index;
+
+        if (chunk.sky_light_data[index] != 0) continue;
+
+        int center_opacity = chunk.opacity_data[index];
+        int best = 0;
+
+        if (can_use_fast(index)) {
+            int y = index_y(index);
+            fill_full_opacity_fast(chunk, index, y);
+            const uint8_t* light_data = chunk.sky_light_data.data();
+            for (int i = 0; i < 27; ++i) {
+                if (i == CENTER) continue;
+                const Offset& o = OFFSETS[i];
+                int ny = y + o.dy;
+                if (ny < 0 || ny >= HEIGHT) continue;
+                int candidate = static_cast<int>(light_data[index + o.delta]) -
+                                center_opacity -
+                                (o.dist == 8 ? o.dist : full_opacity[i]);
+                if (candidate > best) best = candidate;
+            }
+        } else {
+            std::array<Chunk*, 27> chunks;
+            std::array<uint32_t, 27> indices;
+            resolve_neighborhood(chunk, index_x(index), index_y(index), index_z(index),
+                                 chunks, indices);
+            fill_full_opacity_slow(chunk, index, chunks, indices);
+            for (int i = 0; i < 27; ++i) {
+                if (i == CENTER || !chunks[i]) continue;
+                const Offset& o = OFFSETS[i];
+                int candidate = static_cast<int>(chunks[i]->sky_light_data[indices[i]]) -
+                                center_opacity -
+                                (o.dist == 8 ? o.dist : full_opacity[i]);
+                if (candidate > best) best = candidate;
+            }
+        }
+
+        // Прямой свет неба — самостоятельный источник, который не должен
+        // зависеть от бокового света. Поэтому берём максимум из бокового
+        // распространения и прямого уровня столбца.
+        const int direct = sky_column_level(
+            chunk, index_x(index), index_y(index), index_z(index));
+        int seed = std::max(best, direct);
+
+        if (seed > 0) {
+            schedule_sky_light(chunk, index,
+                               static_cast<uint8_t>(std::min(seed, 255)));
+        }
+    }
+    sky_darkened_blocks.clear();
+}
+
+void LightEngine::remove_sky_light() {
+    while (has_sky_dark_pending()) {
+        for (int level = LEVEL_COUNT; level >= 1; --level) {
+            auto& fast_list = sky_dark_lists.fast[level - 1];
+            for (size_t i = 0; i < fast_list.size(); ++i) {
+                process_sky_dark_entry(fast_list[i], true);
+            }
+            fast_list.clear();
+
+            auto& slow_list = sky_dark_lists.slow[level - 1];
+            for (size_t i = 0; i < slow_list.size(); ++i) {
+                process_sky_dark_entry(slow_list[i], false);
+            }
+            slow_list.clear();
+        }
+    }
+
+    seed_sky_after_darkening();
+}
+
+void LightEngine::process_sky_light_entry(const Entry& entry, int level, bool fast) {
+    Chunk& chunk = *entry.chunk;
+    uint32_t index = entry.index;
+
+    uint8_t queued = chunk.sky_light_queue_level[index];
+    // Обрабатываем только актуальную запись. Более низкие записи могли
+    // устареть после затемнения или после распространения более яркого
+    // света; более высокие ещё ждут своей очереди.
+    if (queued != level) {
+        if (queued == 0) {
+            chunk.mark_sky_light_dirty(index, false);
+        }
+        return;
+    }
+
+    uint8_t current = chunk.sky_light_data[index];
+    chunk.sky_light_queue_level[index] = 0;
+    chunk.mark_sky_light_dirty(index, false);
+
+    // Небесный свет только добавляет яркость: прямое значение столбца
+    // не может быть погашено более слабым боковым светом. Уровень из
+    // очереди тоже является нижней границей (для прямого света это
+    // значение столбца, для распространения — яркость соседа).
+    int new_light = std::max(static_cast<int>(current), level);
+    // Собственная opacity клетки ограничивает свет сверху. Для боковых
+    // переходов она уже входит в full_opacity, для рёбер и углов вычитается
+    // отдельно при распространении; этот clamp остаётся страховкой.
+    new_light = std::min(new_light,
+                         255 - static_cast<int>(chunk.opacity_data[index]));
+
+    new_light = std::max(0, std::min(new_light, 255));
+    const uint8_t new_light_u8 = static_cast<uint8_t>(new_light);
+    if (chunk.sky_light_data[index] != new_light_u8) {
+        mark_nugget_changed(chunk, index);
+    }
+    chunk.sky_light_data[index] = new_light_u8;
+
+    if (fast) {
+        int y = index_y(index);
+        fill_full_opacity_fast(chunk, index, y);
+
+        uint8_t* light_mut = chunk.sky_light_data.data();
+        const uint8_t* opacity_mut = chunk.opacity_data.data();
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER) continue;
+            const Offset& o = OFFSETS[i];
+            int ny = y + o.dy;
+            if (ny < 0 || ny >= HEIGHT) continue;
+
+            uint32_t nindex = index + o.delta;
+            int target = new_light - full_opacity[i];
+            if (o.dist != 8) target -= opacity_mut[nindex];
+            if (target <= 0) continue;
+            if (light_mut[nindex] < target) {
+                schedule_sky_light(chunk, nindex,
+                                   static_cast<uint8_t>(std::min(target, 255)));
+            }
+        }
+    } else {
+        std::array<Chunk*, 27> chunks;
+        std::array<uint32_t, 27> indices;
+        resolve_neighborhood(chunk, index_x(index), index_y(index), index_z(index),
+                             chunks, indices);
+        fill_full_opacity_slow(chunk, index, chunks, indices);
+
+        for (int i = 0; i < 27; ++i) {
+            if (i == CENTER || !chunks[i]) continue;
+            Chunk& nchunk = *chunks[i];
+            uint32_t nindex = indices[i];
+            int target = new_light - full_opacity[i];
+            if (OFFSETS[i].dist != 8) target -= nchunk.opacity_data[nindex];
+            if (target <= 0) continue;
+
+            if (nchunk.sky_light_data[nindex] < target) {
+                schedule_sky_light(nchunk, nindex,
+                                   static_cast<uint8_t>(std::min(target, 255)));
+            }
+        }
+    }
+}
+
+void LightEngine::propagate_sky_light() {
+    while (has_sky_light_pending()) {
+        for (int level = LEVEL_COUNT; level >= 1; --level) {
+            auto& fast_list = sky_light_lists.fast[level - 1];
+            for (size_t i = 0; i < fast_list.size(); ++i) {
+                process_sky_light_entry(fast_list[i], level, true);
+            }
+            fast_list.clear();
+
+            auto& slow_list = sky_light_lists.slow[level - 1];
+            for (size_t i = 0; i < slow_list.size(); ++i) {
+                process_sky_light_entry(slow_list[i], level, false);
+            }
+            slow_list.clear();
+        }
+    }
 }
 
 void LightEngine::remove_light() {
@@ -819,4 +1355,6 @@ void LightEngine::propagate_light() {
 void LightEngine::update() {
     remove_light();
     propagate_light();
+    remove_sky_light();
+    propagate_sky_light();
 }

@@ -113,10 +113,17 @@ PYBIND11_MODULE(chunk_module, m) {
         
         .def("get_light", &Chunk::get_light, py::arg("x"), py::arg("y"), py::arg("z"))
         .def("set_light", &Chunk::set_light, py::arg("x"), py::arg("y"), py::arg("z"), py::arg("value"))
+
+        .def("get_sky_light", &Chunk::get_sky_light, py::arg("x"), py::arg("y"), py::arg("z"))
+        .def("set_sky_light", &Chunk::set_sky_light, py::arg("x"), py::arg("y"), py::arg("z"), py::arg("value"))
         
         .def("is_light_dirty", &Chunk::is_light_dirty, py::arg("global_index"))
         .def("mark_light_dirty", &Chunk::mark_light_dirty, py::arg("global_index"), py::arg("state"))
         .def("clear_all_light_dirty", &Chunk::clear_all_light_dirty)
+
+        .def("is_sky_light_dirty", &Chunk::is_sky_light_dirty, py::arg("global_index"))
+        .def("mark_sky_light_dirty", &Chunk::mark_sky_light_dirty, py::arg("global_index"), py::arg("state"))
+        .def("clear_all_sky_light_dirty", &Chunk::clear_all_sky_light_dirty)
         
         .def("is_standard_cube", &Chunk::is_standard_cube, py::arg("global_index"))
         .def("set_standard_cube", &Chunk::set_standard_cube, py::arg("global_index"), py::arg("state"))
@@ -147,11 +154,20 @@ PYBIND11_MODULE(chunk_module, m) {
         .def_property_readonly("light_np", [](Chunk& self) {
             return py::array_t<uint8_t>({Chunk::VOLUME}, {sizeof(uint8_t)}, self.light_data.data(), py::capsule(&self));
         })
+        .def_property_readonly("sky_light_np", [](Chunk& self) {
+            return py::array_t<uint8_t>({Chunk::VOLUME}, {sizeof(uint8_t)}, self.sky_light_data.data(), py::capsule(&self));
+        })
         .def_property_readonly("light_queue_level_np", [](Chunk& self) {
             return py::array_t<uint8_t>({Chunk::VOLUME}, {sizeof(uint8_t)}, self.light_queue_level.data(), py::capsule(&self));
         })
+        .def_property_readonly("sky_light_queue_level_np", [](Chunk& self) {
+            return py::array_t<uint8_t>({Chunk::VOLUME}, {sizeof(uint8_t)}, self.sky_light_queue_level.data(), py::capsule(&self));
+        })
         .def_property_readonly("light_dirty_np", [](Chunk& self) {
             return py::array_t<uint64_t>({Chunk::FLAG_WORDS}, {sizeof(uint64_t)}, self.light_dirty.data(), py::capsule(&self));
+        })
+        .def_property_readonly("sky_light_dirty_np", [](Chunk& self) {
+            return py::array_t<uint64_t>({Chunk::FLAG_WORDS}, {sizeof(uint64_t)}, self.sky_light_dirty.data(), py::capsule(&self));
         })
         .def_property_readonly("cube_flags_np", [](Chunk& self) {
             return py::array_t<uint64_t>({Chunk::FLAG_WORDS}, {sizeof(uint64_t)}, self.cube_flags.data(), py::capsule(&self));

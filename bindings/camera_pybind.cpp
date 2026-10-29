@@ -30,7 +30,9 @@ PYBIND11_MODULE(camera_module, m) {
         .def("sync_transform_from_view", &Camera::sync_transform_from_view)
         .def("update", &Camera::update, py::arg("tick"))
         .def("render", &Camera::render,
-             py::arg("current_tick"), py::arg("min_light") = 0.1f)
+             py::arg("current_tick"), py::arg("min_light") = 0.1f,
+             py::arg("day_light") = 1.0f,
+             "Рисует сцену. day_light: 0 — ночь, 1 — день.")
         .def("__repr__", [](const Camera& camera) {
             return "Camera(pos=(" + std::to_string(camera.view.position.x) + ", " +
                    std::to_string(camera.view.position.y) + ", " +

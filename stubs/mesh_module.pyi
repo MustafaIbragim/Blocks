@@ -52,6 +52,9 @@ class Mesh:
     @property
     def faces_np(self) -> np.ndarray: ...
 
+    @property
+    def face_colors_np(self) -> np.ndarray: ...
+
     def __repr__(self) -> str: ...
 
 
