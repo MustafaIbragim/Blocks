@@ -18,26 +18,6 @@ PYBIND11_MODULE(world_module, m) {
     
     m.doc() = "World module";
     
-    py::class_<LightEngine>(m, "LightEngine")
-        .def("update", &LightEngine::update,
-             "Полный цикл: затемнение, затем освещение")
-        .def("remove_light", &LightEngine::remove_light, "Только затемнение")
-        .def("propagate_light", &LightEngine::propagate_light, "Только освещение")
-        .def("remove_sky_light", &LightEngine::remove_sky_light,
-             "Только затемнение небесного света")
-        .def("propagate_sky_light", &LightEngine::propagate_sky_light,
-             "Только распространение небесного света")
-        .def("mark_neighborhood", &LightEngine::mark_neighborhood,
-             py::arg("chunk"), py::arg("local_pos"))
-        .def("mark_chunk_sources", &LightEngine::mark_chunk_sources,
-             py::arg("chunk"))
-        .def("has_pending", &LightEngine::has_pending)
-        .def("has_dark_pending", &LightEngine::has_dark_pending)
-        .def("has_light_pending", &LightEngine::has_light_pending)
-        .def("has_sky_dark_pending", &LightEngine::has_sky_dark_pending)
-        .def("has_sky_light_pending", &LightEngine::has_sky_light_pending)
-        .def("clear_queues", &LightEngine::clear_queues);
-    
     py::class_<World, std::shared_ptr<World>>(m, "World")
         .def(py::init<BlockManager&, TextureBlocksManager&, TextureManager&>(),
              py::arg("block_mgr"), py::arg("tex_blocks_mgr"), py::arg("tex_mgr"))
