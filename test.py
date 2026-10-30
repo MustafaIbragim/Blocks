@@ -73,7 +73,7 @@ def test_renderer():
     assert scratch_chunk.nuggets[0].get_nbt_by_index(1) == 0x1234
 
     class NbtTickBlock(bm.Block):
-        def on_tick(self, pos, tick, nbt):
+        def on_tick(self, pos, tick, nbt=0):
             return (nbt + 1) & 0xFFFF
 
     nbt_mgr = bm.BlockManager()
@@ -94,7 +94,9 @@ def test_renderer():
     scratch_world = wm.World(scratch_mgr, tm.TextureBlocksManager(), tm.TextureManager())
     scratch_id = scratch_world.spawn_item_entity(
         items.ItemStack(scratch_item, 3), vm.Vec3f(0.0, 0.0, 0.0))
-    scratch_world.get_item_entity(scratch_id).pickup_delay = 0.0
+    scratch = scratch_world.get_item_entity(scratch_id)
+    if isinstance(scratch, items.ItemEntity):
+        scratch.pickup_delay = 0.0
     assert scratch_world.pickup_item_entity(scratch_id, scratch_inv, 0)
     assert scratch_inv.get_slot(0).count == 8
     print("  [OK] Предметы: стак возвращается в предпочтительный слот")
@@ -294,7 +296,8 @@ def test_renderer():
         vm.Vec3r(0.0, -0.2, 0.0, False),
     )
     dummy.view.fov = 70.0
-
+    dummy.step_height = 1.05
+    
     # Camera хранит ViewCam и ссылку на Renderer; сам ViewCam принадлежит Dummy.
     camera = cam.Camera(renderer, dummy.view)
 

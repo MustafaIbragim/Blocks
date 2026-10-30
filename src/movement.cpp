@@ -659,6 +659,11 @@ bool GroundMover::try_step_up(World& world,
         }
 
         body.position.y += lift;
+        if (std::abs(desired_delta.x) >= std::abs(desired_delta.z)) {
+            body.position.x += desired_delta.x;
+        } else {
+            body.position.z += desired_delta.z;
+        }
         body.grounded = false;
         if (body.velocity.y < 0.0f) {
             body.velocity.y = 0.0f;
