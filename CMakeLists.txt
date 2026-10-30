@@ -73,6 +73,7 @@ add_library(core SHARED
     src/mesh_lighting.cpp
     src/raycast.cpp
     src/collision.cpp
+    src/movement.cpp
     src/input.cpp
 )
 target_include_directories(core PUBLIC include)
@@ -186,6 +187,14 @@ set_target_properties(world_module PROPERTIES
 pybind11_add_module(collision_module bindings/collision_pybind.cpp)
 target_link_libraries(collision_module PRIVATE core)
 set_target_properties(collision_module PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
+    INSTALL_RPATH "$ORIGIN/../lib"
+    BUILD_WITH_INSTALL_RPATH TRUE
+)
+
+pybind11_add_module(movement_module bindings/movement_pybind.cpp)
+target_link_libraries(movement_module PRIVATE core)
+set_target_properties(movement_module PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${PYTHON_OUTPUT_DIR}
     INSTALL_RPATH "$ORIGIN/../lib"
     BUILD_WITH_INSTALL_RPATH TRUE

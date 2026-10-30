@@ -356,7 +356,7 @@ def test_renderer():
         vm.Vec3r(0.0, -0.2, 0.0, False),
     )
     dummy.view.fov = 70.0
-
+    
     # Camera хранит ViewCam и ссылку на Renderer; сам ViewCam принадлежит Dummy.
     camera = cam.Camera(renderer, dummy.view)
 

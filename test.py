@@ -398,11 +398,11 @@ def test_renderer():
             elif vertical < 0.0:
                 vertical_velocity = -9.5
 
-            dummy.body.velocity = vm.Vec3f(
-                move.x * move_speed,
-                vertical_velocity,
-                move.z * move_speed,
-            )
+            # Горизонтальное движение и шаг на ступеньку — через модуль
+            # movement; вертикальная скорость остаётся за физикой.
+            dummy.move_towards(
+                world, move, move_speed, dt, dummy.step_height)
+            dummy.body.velocity.y = vertical_velocity
             physics.step(dt)
 
             # X/Z камеры идут за физикой без задержки; Y отстаёт на 2 такта.

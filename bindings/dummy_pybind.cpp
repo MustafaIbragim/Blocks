@@ -16,6 +16,7 @@ PYBIND11_MODULE(dummy_module, m) {
     py::module_::import("entity_module");
     py::module_::import("renderer_module");
     py::module_::import("collision_module");
+    py::module_::import("movement_module");
 
     m.doc() = "Dummy entity owning a ViewCam";
 
@@ -45,6 +46,38 @@ PYBIND11_MODULE(dummy_module, m) {
         .def_property_readonly(
             "body", [](Dummy& dummy) -> EntityCollision& { return dummy.body; },
             py::return_value_policy::reference_internal)
+        .def_property_readonly(
+            "mover", [](Dummy& dummy) -> GroundMover& { return dummy.mover; },
+            py::return_value_policy::reference_internal)
+        .def_readwrite("step_height", &Dummy::step_height)
+        .def("move_to",
+             [](Dummy& self, World& world, const Vec3i& from,
+                const Vec3i& to, float duration,
+                std::optional<float> step_height) {
+                 return self.move_to(world, from, to, duration, step_height);
+             },
+             py::arg("world"), py::arg("start"), py::arg("to"),
+             py::arg("duration"), py::arg("step_height") = py::none())
+        .def("move_to",
+             [](Dummy& self, World& world, const Vec3i& to,
+                float duration, std::optional<float> step_height) {
+                 return self.move_to(world, to, duration, step_height);
+             },
+             py::arg("world"), py::arg("to"), py::arg("duration"),
+             py::arg("step_height") = py::none())
+        .def("update_movement", &Dummy::update_movement,
+             py::arg("world"), py::arg("delta_time"))
+        .def("move_towards",
+             [](Dummy& self, World& world, const Vec3f& direction,
+                float speed, float delta_time,
+                std::optional<float> step_height) {
+                 self.move_towards(world, direction, speed, delta_time,
+                                   step_height);
+             },
+             py::arg("world"), py::arg("direction"), py::arg("speed"),
+             py::arg("delta_time"), py::arg("step_height") = py::none())
+        .def("stop_movement", &Dummy::stop_movement)
+        .def("is_moving", &Dummy::is_moving)
         .def("set_view", &Dummy::set_view, py::arg("view"))
         .def("set_yaw", &Dummy::set_yaw, py::arg("yaw"))
         .def("get_yaw", &Dummy::get_yaw)
@@ -66,7 +99,8 @@ PYBIND11_MODULE(dummy_module, m) {
         .def("set_gravity_enabled", &Dummy::set_gravity_enabled,
              py::arg("enabled"))
         .def("toggle_physics", &Dummy::toggle_physics)
-        .def("update", &Dummy::update, py::arg("tick"))
+        .def("update", &Dummy::update,
+             py::arg("tick"), py::arg("gravity") = 0.0f)
         .def("__repr__", [](const Dummy& dummy) {
             return "Dummy(pos=(" + std::to_string(dummy.view.position.x) + ", " +
                    std::to_string(dummy.view.position.y) + ", " +

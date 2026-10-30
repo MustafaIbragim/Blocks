@@ -10,6 +10,13 @@ Dummy::Dummy() {
     body.position = transform.position;
     body.mass = 70.0f;
     body.reset_history();
+
+    dynamic = true;
+    speed = 8.0f;
+    drag = 0.0f;
+    mover.set_half_extents(Vec3f(BODY_RADIUS, BODY_HEIGHT * 0.5f, BODY_RADIUS));
+    mover.set_step_height(step_height);
+
     sync_view_from_transform();
 }
 
@@ -23,6 +30,12 @@ Dummy::Dummy(const Vec3f& position, const Vec3r& rotation) {
     body.position = position;
     body.mass = 70.0f;
     body.reset_history();
+
+    dynamic = true;
+    speed = 8.0f;
+    drag = 0.0f;
+    mover.set_half_extents(Vec3f(BODY_RADIUS, BODY_HEIGHT * 0.5f, BODY_RADIUS));
+    mover.set_step_height(step_height);
 
     sync_view_from_transform();
 }
@@ -86,8 +99,75 @@ void Dummy::sync_view_from_body(float alpha) {
     set_pitch(view.rotation.y);
 }
 
-void Dummy::update(uint32_t tick) {
-    (void)tick;
+bool Dummy::move_to(World& world,
+                    const Vec3i& from,
+                    const Vec3i& to,
+                    float duration,
+                    std::optional<float> step_height) {
+    const float height = step_height.value_or(this->step_height);
+    this->step_height = height;
+    mover.set_step_height(height);
+
+    const bool ok = mover.move_to(world, body, from, to, duration, height,
+                                  true);
+    if (ok) {
+        sync_transform_from_body();
+    }
+    return ok;
+}
+
+bool Dummy::move_to(World& world,
+                    const Vec3i& to,
+                    float duration,
+                    std::optional<float> step_height) {
+    const Vec3i from = PathMover::current_block(body);
+    return move_to(world, from, to, duration, step_height);
+}
+
+bool Dummy::update_movement(World& world, float delta_time) {
+    const bool moving = mover.update(world, body, delta_time);
+    sync_transform_from_body();
+    return moving;
+}
+
+void Dummy::move_towards(World& world,
+                         const Vec3f& direction,
+                         float speed,
+                         float delta_time,
+                         std::optional<float> step_height) {
+    const float height = step_height.value_or(this->step_height);
+    this->step_height = height;
+    mover.set_step_height(height);
+    // Ручное управление отменяет текущий путь, иначе update_movement()
+    // продолжил бы перезаписывать скорость.
+    mover.stop();
+    this->speed = speed;
+
+    Vec3f horizontal(direction.x, 0.0f, direction.z);
+    const float length = horizontal.length();
+    if (length > 1e-6f) {
+        horizontal = horizontal / length;
+    } else {
+        horizontal = Vec3f::zero();
+    }
+
+    const Vec3f desired(horizontal.x * speed * delta_time,
+                        0.0f,
+                        horizontal.z * speed * delta_time);
+    GroundMover::try_step_up(world, body, desired, height);
+
+    body.velocity.x = horizontal.x * speed;
+    body.velocity.z = horizontal.z * speed;
+}
+
+void Dummy::stop_movement() {
+    mover.stop();
+    body.velocity.x = 0.0f;
+    body.velocity.z = 0.0f;
+}
+
+void Dummy::update(uint32_t tick, float gravity) {
+    Entity::update(tick, gravity);
     sync_view_from_transform();
 }
 

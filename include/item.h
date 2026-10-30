@@ -10,6 +10,7 @@
 #include "entity.h"
 #include "image.h"
 #include "mesh.h"
+#include "movement.h"
 #include "vec.h"
 
 
@@ -171,6 +172,12 @@ public:
     // только со статичными блоками и игнорирует сущности.
     FragmentCollision collision_body;
 
+    // То же перемещение по блокам, что и у Dummy. Предметы по умолчанию не
+    // забираются на ступеньки (step_height=0), но World::update_items
+    // использует этот же механизм, если шаг разрешён.
+    GroundMover mover;
+    float step_height = 0.0f;
+
     // Позиция для графики. Отстаёт от физической на 2 такта и
     // интерполируется, чтобы предмет не телепортировался между кадрами.
     Vec3f render_position;
@@ -206,5 +213,19 @@ public:
         return alive && pickup_delay <= 0.0f && !stack.empty();
     }
 
-    void update(uint32_t tick) override { (void)tick; }
+    bool move_to(World& world,
+                 const Vec3i& from,
+                 const Vec3i& to,
+                 float duration,
+                 std::optional<float> step_height = std::nullopt);
+    bool move_to(World& world,
+                 const Vec3i& to,
+                 float duration,
+                 std::optional<float> step_height = std::nullopt);
+    void stop_movement();
+    bool is_moving() const { return mover.is_moving(); }
+
+    void update(uint32_t tick, float gravity = 0.0f) override {
+        Entity::update(tick, gravity);
+    }
 };

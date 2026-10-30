@@ -28,7 +28,8 @@ PYBIND11_MODULE(camera_module, m) {
         .def("set_view", &Camera::set_view, py::arg("view"))
         .def("sync_view_from_transform", &Camera::sync_view_from_transform)
         .def("sync_transform_from_view", &Camera::sync_transform_from_view)
-        .def("update", &Camera::update, py::arg("tick"))
+        .def("update", &Camera::update,
+             py::arg("tick"), py::arg("gravity") = 0.0f)
         .def("render", &Camera::render,
              py::arg("current_tick"), py::arg("min_light") = 0.1f,
              py::arg("day_light") = 1.0f,

@@ -3,13 +3,19 @@
 #include "renderer.h"
 
 
-Camera::Camera() = default;
+Camera::Camera() {
+    dynamic = false;
+}
 
 Camera::Camera(Renderer* renderer)
-    : renderer(renderer) {}
+    : renderer(renderer) {
+    dynamic = false;
+}
 
 Camera::Camera(Renderer* renderer, const ViewCam& view)
-    : view(view), renderer(renderer) {}
+    : view(view), renderer(renderer) {
+    dynamic = false;
+}
 
 void Camera::sync_view_from_transform() {
     view.position = transform.position;
@@ -21,8 +27,8 @@ void Camera::sync_transform_from_view() {
     transform.rotation = view.rotation;
 }
 
-void Camera::update(uint32_t tick) {
-    (void)tick;
+void Camera::update(uint32_t tick, float gravity) {
+    Entity::update(tick, gravity);
     sync_view_from_transform();
 }
 

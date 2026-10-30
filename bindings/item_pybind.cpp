@@ -27,6 +27,7 @@ PYBIND11_MODULE(item_module, m) {
     py::module_::import("entity_module");
     py::module_::import("block_module");
     py::module_::import("mesh_module");
+    py::module_::import("movement_module");
 
     m.doc() = "Items: descriptors, stacks, inventories and item entities";
 
@@ -142,6 +143,31 @@ PYBIND11_MODULE(item_module, m) {
                 return entity.collision_body;
             },
             py::return_value_policy::reference_internal)
+        .def_property_readonly(
+            "mover", [](ItemEntity& entity) -> GroundMover& {
+                return entity.mover;
+            },
+            py::return_value_policy::reference_internal)
+        .def_readwrite("step_height", &ItemEntity::step_height)
+        .def("move_to",
+             [](ItemEntity& self, World& world, const Vec3i& from,
+                const Vec3i& to, float duration,
+                std::optional<float> step_height) {
+                 return self.move_to(world, from, to, duration, step_height);
+             },
+             py::arg("world"), py::arg("start"), py::arg("to"),
+             py::arg("duration"), py::arg("step_height") = py::none())
+        .def("move_to",
+             [](ItemEntity& self, World& world, const Vec3i& to,
+                float duration, std::optional<float> step_height) {
+                 return self.move_to(world, to, duration, step_height);
+             },
+             py::arg("world"), py::arg("to"), py::arg("duration"),
+             py::arg("step_height") = py::none())
+        .def("stop_movement", &ItemEntity::stop_movement)
+        .def("is_moving", &ItemEntity::is_moving)
+        .def("update", &ItemEntity::update,
+             py::arg("tick"), py::arg("gravity") = 0.0f)
         .def("can_pickup", &ItemEntity::can_pickup)
         .def("__repr__", [](const ItemEntity& entity) {
             return "ItemEntity(id=" + std::to_string(entity.id) +

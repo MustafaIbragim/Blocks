@@ -4,6 +4,7 @@
 
 #include "collision.h"
 #include "entity.h"
+#include "movement.h"
 #include "view_cam.h"
 
 
@@ -34,6 +35,12 @@ public:
     // (BODY_RADIUS * 2) x BODY_HEIGHT x (BODY_RADIUS * 2). Его можно
     // зарегистрировать в CollisionWorld::add_entity(body).
     EntityCollision body;
+
+    // Перемещение по блокам: поиск пути, шаг на ступеньку и движение
+    // вдоль пути. Mover только задаёт скорость/приподнимает тело; реальное
+    // перемещение выполняет CollisionWorld.
+    GroundMover mover;
+    float step_height = 0.6f;
 
     // Состояние, которое удобно переключать из теста/игры.
     bool collisions_enabled = true;
@@ -84,7 +91,33 @@ public:
         body.gravity_enabled = gravity_enabled;
     }
 
-    void update(uint32_t tick) override;
+    // Перемещение из блока from в блок to за duration секунд. Если путь
+    // непроходим, команда не выдаётся и возвращается false.
+    bool move_to(World& world,
+                 const Vec3i& from,
+                 const Vec3i& to,
+                 float duration,
+                 std::optional<float> step_height = std::nullopt);
+    bool move_to(World& world,
+                 const Vec3i& to,
+                 float duration,
+                 std::optional<float> step_height = std::nullopt);
+
+    // Продвинуть путь на delta_time. Возвращает true, пока движение идёт.
+    bool update_movement(World& world, float delta_time);
+
+    // Ручное движение в заданном направлении (для ввода игрока). Перед
+    // выдачей горизонтальной скорости пробует забраться на ступеньку.
+    void move_towards(World& world,
+                      const Vec3f& direction,
+                      float speed,
+                      float delta_time,
+                      std::optional<float> step_height = std::nullopt);
+
+    void stop_movement();
+    bool is_moving() const { return mover.is_moving(); }
+
+    void update(uint32_t tick, float gravity = 0.0f) override;
 };
 
 

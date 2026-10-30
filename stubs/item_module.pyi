@@ -5,6 +5,7 @@ from collision_module import FragmentCollision
 from entity_module import Entity
 from image_module import Image
 from mesh_module import Mesh
+from movement_module import GroundMover
 from vec_module import Vec3f, Vec3i
 from world_module import World
 
@@ -113,6 +114,31 @@ class ItemEntity(Entity):
     def sync_render_mesh(self) -> None: ...
     @property
     def collision_body(self) -> FragmentCollision: ...
+    @property
+    def mover(self) -> GroundMover: ...
+    step_height: float
+
+    @overload
+    def move_to(
+        self,
+        world: World,
+        start: Vec3i,
+        to: Vec3i,
+        duration: float,
+        step_height: Optional[float] = None,
+    ) -> bool: ...
+    @overload
+    def move_to(
+        self,
+        world: World,
+        to: Vec3i,
+        duration: float,
+        step_height: Optional[float] = None,
+    ) -> bool: ...
+
+    def stop_movement(self) -> None: ...
+    def is_moving(self) -> bool: ...
+    def update(self, tick: int, gravity: float = 0.0) -> None: ...
     def can_pickup(self) -> bool: ...
 
     def __repr__(self) -> str: ...

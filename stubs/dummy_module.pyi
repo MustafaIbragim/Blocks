@@ -3,7 +3,8 @@ from typing import Optional, overload
 from collision_module import EntityCollision, TriggerCollision
 from entity_module import Entity
 from item_module import Inventory
-from vec_module import Vec3f, Vec3r
+from movement_module import GroundMover
+from vec_module import Vec3f, Vec3i, Vec3r
 from view_cam_module import ViewCam
 from world_module import World
 
@@ -33,6 +34,39 @@ class Dummy(Entity):
     def gravity_enabled(self, value: bool) -> None: ...
     @property
     def body(self) -> EntityCollision: ...
+    @property
+    def mover(self) -> GroundMover: ...
+    step_height: float
+
+    @overload
+    def move_to(
+        self,
+        world: World,
+        start: Vec3i,
+        to: Vec3i,
+        duration: float,
+        step_height: Optional[float] = None,
+    ) -> bool: ...
+    @overload
+    def move_to(
+        self,
+        world: World,
+        to: Vec3i,
+        duration: float,
+        step_height: Optional[float] = None,
+    ) -> bool: ...
+
+    def update_movement(self, world: World, delta_time: float) -> bool: ...
+    def move_towards(
+        self,
+        world: World,
+        direction: Vec3f,
+        speed: float,
+        delta_time: float,
+        step_height: Optional[float] = None,
+    ) -> None: ...
+    def stop_movement(self) -> None: ...
+    def is_moving(self) -> bool: ...
 
     def set_view(self, view: ViewCam) -> None: ...
     def set_yaw(self, yaw: float) -> None: ...
@@ -60,7 +94,7 @@ class Dummy(Entity):
     def set_collisions_enabled(self, enabled: bool) -> None: ...
     def set_gravity_enabled(self, enabled: bool) -> None: ...
     def toggle_physics(self) -> None: ...
-    def update(self, tick: int) -> None: ...
+    def update(self, tick: int, gravity: float = 0.0) -> None: ...
 
     def __repr__(self) -> str: ...
 

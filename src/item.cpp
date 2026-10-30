@@ -322,6 +322,12 @@ ItemEntity::ItemEntity() {
     collision_body.mass = 0.1f;
     collision_body.reset_history();
     render_position = transform.position;
+
+    dynamic = true;
+    speed = 0.0f;
+    drag = 0.5f;
+    mover.set_half_extents(Vec3f(0.2f, 0.2f, 0.2f));
+    mover.set_step_height(step_height);
 }
 
 ItemEntity::ItemEntity(const ItemStack& stack,
@@ -337,6 +343,12 @@ ItemEntity::ItemEntity(const ItemStack& stack,
     collision_body.gravity_enabled = true;
     collision_body.collisions_enabled = true;
     collision_body.reset_history();
+
+    dynamic = true;
+    speed = 0.0f;
+    drag = 0.5f;
+    mover.set_half_extents(Vec3f(0.2f, 0.2f, 0.2f));
+    mover.set_step_height(step_height);
 
     render_position = position;
     sync_render_mesh();
@@ -362,4 +374,41 @@ void ItemEntity::refresh_mesh_lighting(const World& world) {
     }
     MeshLighting::update_mesh_lighting(
         world, *render_mesh, render_position + mesh_offset);
+}
+
+bool ItemEntity::move_to(World& world,
+                         const Vec3i& from,
+                         const Vec3i& to,
+                         float duration,
+                         std::optional<float> step_height) {
+    const float height = step_height.value_or(this->step_height);
+    this->step_height = height;
+    mover.set_step_height(height);
+
+    const bool ok = mover.move_to(world, collision_body, from, to, duration,
+                                  height, true);
+    // Синхронизируем и при неудаче: move_to() останавливает прежнее
+    // движение, и World::update_items не должен вернуть старую скорость.
+    velocity = collision_body.velocity;
+    if (ok) {
+        transform.position = collision_body.position;
+        render_position = collision_body.position;
+    }
+    return ok;
+}
+
+bool ItemEntity::move_to(World& world,
+                         const Vec3i& to,
+                         float duration,
+                         std::optional<float> step_height) {
+    const Vec3i from = PathMover::current_block(collision_body);
+    return move_to(world, from, to, duration, step_height);
+}
+
+void ItemEntity::stop_movement() {
+    mover.stop();
+    collision_body.velocity.x = 0.0f;
+    collision_body.velocity.z = 0.0f;
+    velocity.x = 0.0f;
+    velocity.z = 0.0f;
 }

@@ -19,6 +19,7 @@ import collision_module as pm
 import dummy_module as dm
 import mesh_lighting_module as ml
 import chunk_mesher_module as cmm
+import movement_module as mov
 
 
 EPS = 1e-3
@@ -828,6 +829,117 @@ def test_item_physics():
     print("  ItemEntity: FragmentCollision + render_position + mesh light OK")
 
 
+# ---------------------------------------------------------------------------
+# 10. Movement: поиск пути A -> B, ступеньки, полёт и item-entity
+# ---------------------------------------------------------------------------
+def test_movement_module():
+    start = vm.Vec3i(14, 11, 16)
+    target = vm.Vec3i(18, 11, 16)
+    half = vm.Vec3f(0.3, 0.9, 0.3)
+
+    # Стена на всю загруженную ширину по Z: обойти её нельзя, можно только
+    # перешагнуть. Без достаточной высоты шага пути быть не должно.
+    world, dirt, block_mgr, tex_blocks_mgr, tex_mgr = make_world()
+    for z in range(32):
+        world.set_block(vm.Vec3i(16, 11, z), dirt)
+
+    low = mov.GroundMover(0.3, 1.8, 0.6)
+    assert not low.find_path(world, start, target, half, 0.6), \
+        "наземный путь не должен находиться сквозь стену при шаге 0.6"
+    assert len(low.path) == 0
+
+    high = mov.GroundMover(0.3, 1.8, 1.0)
+    assert high.find_path(world, start, target, half, 1.0), \
+        "путь через ступеньку высотой 1.0 не найден"
+    assert len(high.path) >= 3
+    assert high.path[0].block.x == start.x
+    assert high.path[-1].block.x == target.x
+    assert any(close(node.feet_y, 12.0) for node in high.path), \
+        "путь должен содержать узел на верхушке стены"
+    assert high.path_blocks, "path_blocks должен возвращать клетки пути"
+
+    # Dummy идёт по этому же пути и реально забирается на стену.
+    physics = make_collision_world(world)
+    dummy = dm.Dummy(vm.Vec3f(14.5, 11.9, 16.5),
+                     vm.Vec3r(0.0, 0.0, 0.0, False))
+    physics.add_entity(dummy.body)
+    assert dummy.dynamic
+    assert close(dummy.speed, 8.0)
+    assert close(dummy.drag, 0.0)
+    dummy.update(1, 9.8)
+    assert close(dummy.gravity, 9.8)
+
+    assert dummy.move_to(world, start, target, 2.0, 1.0), \
+        "Dummy::move_to не принял проходимый путь"
+    max_y = dummy.body.position.y
+    for _ in range(180):
+        dummy.update_movement(world, 1.0 / 60.0)
+        physics.step(1.0 / 60.0)
+        dummy.sync_view_from_body(0.0)
+        max_y = max(max_y, dummy.body.position.y)
+
+    assert max_y > 12.5, f"Dummy не поднялся на стену: max_y={max_y}"
+    assert close(dummy.body.position.x, 18.5, 0.2), \
+        f"Dummy не дошёл до цели: {dummy.body.position}"
+    assert close(dummy.body.position.y, 11.9, 0.2), \
+        f"Dummy не спустился с стены: {dummy.body.position}"
+    assert not dummy.is_moving()
+
+    # Полёт: тот же A -> B, но по объёму и с временным отключением гравитации.
+    fly_world, fly_dirt, fly_block_mgr, fly_tex_blocks_mgr, fly_tex_mgr = \
+        make_world()
+    for z in range(32):
+        fly_world.set_block(vm.Vec3i(16, 11, z), fly_dirt)
+    fly_physics = make_collision_world(fly_world)
+    fly = mov.FlyMover(0.3, 1.8)
+    assert fly.find_path(fly_world, start, target, half, 0.0), \
+        "воздушный путь не найден"
+    assert max(node.feet_y for node in fly.path) >= 12.0
+
+    fly_dummy = dm.Dummy(vm.Vec3f(14.5, 11.9, 16.5),
+                         vm.Vec3r(0.0, 0.0, 0.0, False))
+    fly_physics.add_entity(fly_dummy.body)
+    assert fly.move_to(fly_world, fly_dummy.body, start, target, 2.0, 0.0)
+    assert not fly_dummy.body.gravity_enabled, \
+        "на время полёта гравитация должна отключаться"
+
+    for _ in range(180):
+        fly.update(fly_world, fly_dummy.body, 1.0 / 60.0)
+        fly_physics.step(1.0 / 60.0)
+        fly_dummy.sync_view_from_body(0.0)
+
+    assert close(fly_dummy.body.position.x, 18.5, 0.2), \
+        f"летящий Dummy не дошёл до цели: {fly_dummy.body.position}"
+    assert close(fly_dummy.body.position.y, 11.9, 0.2), \
+        f"летящий Dummy не опустился: {fly_dummy.body.position}"
+    assert fly_dummy.body.gravity_enabled, \
+        "после полёта гравитация должна восстановиться"
+    assert not fly.is_moving()
+
+    # ItemEntity использует тот же GroundMover и тот же World::update_items.
+    item_world, item_dirt, item_block_mgr, item_tex_blocks_mgr, item_tex_mgr = \
+        make_world()
+    stone = items.Item("stone", None, 64)
+    stack = items.ItemStack(stone, 1)
+    entity_id = item_world.spawn_item_entity(
+        stack, vm.Vec3f(14.5, 11.2, 16.5), vm.Vec3f(0.0, 0.0, 0.0))
+    item_entity = item_world.get_item_entity(entity_id)
+    assert item_entity is not None
+    assert item_entity.move_to(item_world, start, target, 2.0, 0.6), \
+        "item-entity не принял проходимый путь"
+
+    for _ in range(180):
+        item_world.update_items(1.0 / 60.0)
+
+    assert close(item_entity.transform.position.x, 18.5, 0.2), \
+        f"item-entity не дошёл до цели: {item_entity.transform.position}"
+    assert close(item_entity.transform.position.y, 11.2, 0.2), \
+        f"item-entity не остался на полу: {item_entity.transform.position}"
+    assert not item_entity.is_moving()
+
+    print("  Movement: ground step-up, fly, item path A->B OK")
+
+
 def main():
     print("=== Collision engine: AABB, entities, fragments, triggers, meshes ===")
     test_aabb_math()
@@ -846,6 +958,7 @@ def main():
     test_trigger()
     test_interpolation()
     test_item_physics()
+    test_movement_module()
     print("ALL COLLISION TESTS PASSED")
 
 

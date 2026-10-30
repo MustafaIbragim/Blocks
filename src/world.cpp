@@ -369,7 +369,19 @@ void World::update_items(float delta_time) {
         if (delta.length() > 1e-5f) {
             body.set_position(entity->transform.position);
         }
-        body.velocity = entity->velocity;
+
+        if (entity->mover.is_moving()) {
+            // Предмет идёт по заранее проверенному пути; mover задаёт
+            // горизонтальную скорость вдоль него.
+            entity->mover.update(*this, body, dt);
+        } else {
+            body.velocity = entity->velocity;
+            const Vec3f desired(body.velocity.x * dt,
+                                0.0f,
+                                body.velocity.z * dt);
+            GroundMover::try_step_up(*this, body, desired,
+                                     entity->step_height);
+        }
 
         step_fragment_against_world(
             *this, body, dt, Vec3f(0.0f, -GRAVITY, 0.0f));

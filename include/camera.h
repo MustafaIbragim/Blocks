@@ -31,7 +31,7 @@ public:
     void sync_view_from_transform();
     void sync_transform_from_view();
 
-    void update(uint32_t tick) override;
+    void update(uint32_t tick, float gravity = 0.0f) override;
 
     // Отрисовка через сохранённый рендерер.
     // day_light: 0 — ночь, 1 — день.
