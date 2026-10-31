@@ -292,7 +292,7 @@ def test_renderer():
     input_mgr.set_cursor_visible(False)
 
     dummy = dm.Dummy(
-        vm.Vec3f(15.0, 16.9, 25.0),
+        vm.Vec3f(15.0, 17.8, 25.0),
         vm.Vec3r(0.0, -0.2, 0.0, False),
     )
     dummy.view.fov = 70.0
@@ -396,7 +396,9 @@ def test_renderer():
         
         if physics_on:
             vertical_velocity = dummy.body.velocity.y
-            if vertical > 0.0:
+            # Прыжок разрешён только при контакте с полом: grounded
+            # выставляется физикой после проверки касания опоры.
+            if vertical > 0.0 and dummy.body.grounded:
                 vertical_velocity = 9.5
             elif vertical < 0.0:
                 vertical_velocity = -9.5

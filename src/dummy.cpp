@@ -9,6 +9,7 @@ Dummy::Dummy() {
     body.set_half_extents(Vec3f(BODY_RADIUS, BODY_HEIGHT * 0.5f, BODY_RADIUS));
     body.position = transform.position;
     body.mass = 70.0f;
+    body.owner = this;
     body.reset_history();
 
     dynamic = true;
@@ -29,6 +30,7 @@ Dummy::Dummy(const Vec3f& position, const Vec3r& rotation) {
     body.set_half_extents(Vec3f(BODY_RADIUS, BODY_HEIGHT * 0.5f, BODY_RADIUS));
     body.position = position;
     body.mass = 70.0f;
+    body.owner = this;
     body.reset_history();
 
     dynamic = true;

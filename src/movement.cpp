@@ -83,6 +83,161 @@ void collect_collision_boxes(World& world,
     }
 }
 
+// Ищет максимальную высоту опоры под горизонтальным «следом» тела с
+// произвольным центром (а не только под центром клетки). Нужна для
+// проверки прямой видимости между узлами пути.
+bool support_height_at(World& world,
+                       float center_x,
+                       float center_z,
+                       const Vec3f& half_extents,
+                       float max_y,
+                       float max_drop,
+                       float& out_height) {
+    const float min_x = center_x - half_extents.x;
+    const float max_x = center_x + half_extents.x;
+    const float min_z = center_z - half_extents.z;
+    const float max_z = center_z + half_extents.z;
+
+    const int y_top = std::min(static_cast<int>(World::CHUNK_HEIGHT) - 1,
+                               floor_block(max_y + kEpsilon));
+    // Опора с верхом ровно на max_y лежит в блоке ниже, поэтому спускаемся
+    // ещё на один блок (с запасом на погрешность float).
+    const int y_bottom = std::max(
+        0, floor_block(max_y - std::max(0.0f, max_drop) - 2.0f * kEpsilon));
+    if (y_top < y_bottom) {
+        return false;
+    }
+
+    const int x0 = floor_block(min_x);
+    const int x1 = ceil_to_block(max_x);
+    const int z0 = floor_block(min_z);
+    const int z1 = ceil_to_block(max_z);
+
+    bool found = false;
+    float best = -std::numeric_limits<float>::infinity();
+
+    for (int by = y_top; by >= y_bottom; --by) {
+        for (int bz = z0; bz <= z1; ++bz) {
+            for (int bx = x0; bx <= x1; ++bx) {
+                uint16_t nbt = 0;
+                std::shared_ptr<Block> block =
+                    world.get_block(Vec3i(bx, by, bz), nbt);
+                if (!block) {
+                    continue;
+                }
+
+                std::shared_ptr<CollisionMesh> mesh =
+                    block->get_collision_mesh(nbt);
+                if (!mesh || !mesh->physics_used() || mesh->empty()) {
+                    continue;
+                }
+
+                const Vec3f origin(static_cast<float>(bx),
+                                   static_cast<float>(by),
+                                   static_cast<float>(bz));
+                for (const Aabb& local_box : mesh->boxes) {
+                    if (!local_box.valid()) {
+                        continue;
+                    }
+                    const Aabb world_box = local_box.translated(origin);
+                    if (world_box.max.y > max_y + kEpsilon) {
+                        continue;
+                    }
+
+                    const float overlap_x =
+                        std::min(max_x, world_box.max.x) -
+                        std::max(min_x, world_box.min.x);
+                    const float overlap_z =
+                        std::min(max_z, world_box.max.z) -
+                        std::max(min_z, world_box.min.z);
+                    if (overlap_x <= kEpsilon || overlap_z <= kEpsilon) {
+                        continue;
+                    }
+
+                    if (world_box.max.y > best) {
+                        best = world_box.max.y;
+                        found = true;
+                    }
+                }
+            }
+        }
+    }
+
+    if (!found) {
+        return false;
+    }
+    out_height = best;
+    return true;
+}
+
+// Проверяет, можно ли пройти по прямой от одних ступней до других, не
+// перепрыгивая препятствия выше step_height. Используется для
+// «вытягивания» пути: вместо ломаной по центрам клеток тело идёт по
+// прямой к самому дальнему видимому узлу.
+bool ground_segment_clear(World& world,
+                          const Vec3f& from_feet,
+                          const Vec3f& to_feet,
+                          const Vec3f& half_extents,
+                          float step_height) {
+    const float dx = to_feet.x - from_feet.x;
+    const float dz = to_feet.z - from_feet.z;
+    const float horizontal = std::sqrt(dx * dx + dz * dz);
+    if (horizontal <= kEpsilon) {
+        return true;
+    }
+
+    const int samples = std::max(
+        1, static_cast<int>(std::ceil(horizontal / 0.2f)));
+    for (int i = 1; i <= samples; ++i) {
+        const float t = static_cast<float>(i) /
+                        static_cast<float>(samples);
+        const float x = from_feet.x + dx * t;
+        const float z = from_feet.z + dz * t;
+        const float expected_y =
+            from_feet.y + (to_feet.y - from_feet.y) * t;
+
+        float support = 0.0f;
+        if (!support_height_at(world, x, z, half_extents,
+                               expected_y + step_height + kEpsilon,
+                               kMaxDrop, support)) {
+            return false;
+        }
+        if (std::abs(support - expected_y) >
+            step_height + kEpsilon) {
+            return false;
+        }
+        if (!GroundMover::body_free(
+                world, Vec3f(x, support, z), half_extents)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool fly_segment_clear(World& world,
+                       const Vec3f& from_center,
+                       const Vec3f& to_center,
+                       const Vec3f& half_extents) {
+    const Vec3f delta = to_center - from_center;
+    const float length = delta.length();
+    if (length <= kEpsilon) {
+        return true;
+    }
+
+    const int samples = std::max(
+        1, static_cast<int>(std::ceil(length / 0.25f)));
+    for (int i = 1; i <= samples; ++i) {
+        const float t = static_cast<float>(i) /
+                        static_cast<float>(samples);
+        const Vec3f center = from_center + delta * t;
+        const Vec3f feet = center - Vec3f(0.0f, half_extents.y, 0.0f);
+        if (!GroundMover::body_free(world, feet, half_extents)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 PathNode make_node(int x, int z, float feet_y) {
     return PathNode(Vec3i(x, floor_block(feet_y + kEpsilon), z), feet_y);
 }
@@ -258,17 +413,14 @@ bool PathMover::move_to(World& world,
 void PathMover::start_path(DynamicCollision& body,
                            float duration,
                            bool snap_to_start) {
+    // duration оставлен для совместимости API: скорость теперь постоянная
+    // и задаётся через speed. Чем длиннее путь, тем дольше он проходится.
+    (void)duration;
+
     path_index_ = 0;
     path_length_ = compute_path_length(path_);
     moving_ = path_.size() > 1;
-
-    if (duration > 0.0f) {
-        speed_ = path_length_ / std::max(duration, 1e-3f);
-    } else if (path_length_ > 0.0f) {
-        speed_ = path_length_;
-    } else {
-        speed_ = 0.0f;
-    }
+    needs_resmooth_ = true;
 
     if (path_.empty()) {
         moving_ = false;
@@ -316,7 +468,12 @@ bool PathMover::update(World& world,
         return false;
     }
 
-    const float arrive_vertical = arrival_radius_ + 0.05f;
+    // Порог прибытия не меньше шага за кадр, иначе на большой delta_time
+    // тело может проскочить узел и начать дёргаться вокруг него.
+    const float arrive_horizontal =
+        std::max(arrival_radius_, speed_ * delta_time);
+    const float arrive_vertical =
+        std::max(arrival_radius_ + 0.05f, speed_ * delta_time);
 
     // Проходим уже достигнутые узлы (например, если за один кадр тело
     // оказалось сразу в следующем узле).
@@ -332,8 +489,10 @@ bool PathMover::update(World& world,
             std::sqrt(delta.x * delta.x + delta.z * delta.z);
         const float vertical = std::abs(delta.y);
 
-        if (horizontal <= arrival_radius_ && vertical <= arrive_vertical) {
+        if (horizontal <= arrive_horizontal &&
+            vertical <= arrive_vertical) {
             ++path_index_;
+            needs_resmooth_ = true;
             continue;
         }
         break;
@@ -341,6 +500,44 @@ bool PathMover::update(World& world,
 
     if (path_index_ >= path_.size()) {
         return finish_path(body);
+    }
+
+    // «Вытягиваем» путь: ищем самый дальний узел, до которого можно дойти
+    // по прямой, не задевая препятствия. Благодаря этому тело идёт по
+    // диагоналям, а не строго по осям клеток. Проверка выполняется только
+    // при старте и после достижения выбранного узла, а не каждый кадр.
+    if (needs_resmooth_) {
+        needs_resmooth_ = false;
+        if (flying_) {
+            for (std::size_t i = path_.size(); i > path_index_;) {
+                --i;
+                if (i == path_index_) {
+                    break;
+                }
+                const Vec3f candidate =
+                    path_[i].body_center(body.half_extents);
+                if (fly_segment_clear(world, body.position, candidate,
+                                      body.half_extents)) {
+                    path_index_ = i;
+                    break;
+                }
+            }
+        } else {
+            const Vec3f from_feet =
+                body.position - Vec3f(0.0f, body.half_extents.y, 0.0f);
+            for (std::size_t i = path_.size(); i > path_index_;) {
+                --i;
+                if (i == path_index_) {
+                    break;
+                }
+                const Vec3f candidate = path_[i].feet_position();
+                if (ground_segment_clear(world, from_feet, candidate,
+                                         body.half_extents, step_height_)) {
+                    path_index_ = i;
+                    break;
+                }
+            }
+        }
     }
 
     const PathNode& node = path_[path_index_];
@@ -403,6 +600,7 @@ bool PathMover::update(World& world,
 void PathMover::stop() {
     moving_ = false;
     path_index_ = path_.size();
+    needs_resmooth_ = true;
     restore_gravity();
 }
 
@@ -534,83 +732,10 @@ bool GroundMover::support_height(World& world,
                                  float max_y,
                                  float max_drop,
                                  float& out_height) {
-    const float center_x = static_cast<float>(x) + 0.5f;
-    const float center_z = static_cast<float>(z) + 0.5f;
-    const float min_x = center_x - half_extents.x;
-    const float max_x = center_x + half_extents.x;
-    const float min_z = center_z - half_extents.z;
-    const float max_z = center_z + half_extents.z;
-
-    const int y_top = std::min(static_cast<int>(World::CHUNK_HEIGHT) - 1,
-                               floor_block(max_y + kEpsilon));
-    // Опора с верхом ровно на max_y лежит в блоке ниже, поэтому спускаемся
-    // ещё на один блок (с запасом на погрешность float).
-    const int y_bottom = std::max(
-        0, floor_block(max_y - std::max(0.0f, max_drop) - 2.0f * kEpsilon));
-    if (y_top < y_bottom) {
-        return false;
-    }
-
-    const int x0 = floor_block(min_x);
-    const int x1 = ceil_to_block(max_x);
-    const int z0 = floor_block(min_z);
-    const int z1 = ceil_to_block(max_z);
-
-    bool found = false;
-    float best = -std::numeric_limits<float>::infinity();
-
-    for (int by = y_top; by >= y_bottom; --by) {
-        for (int bz = z0; bz <= z1; ++bz) {
-            for (int bx = x0; bx <= x1; ++bx) {
-                uint16_t nbt = 0;
-                std::shared_ptr<Block> block =
-                    world.get_block(Vec3i(bx, by, bz), nbt);
-                if (!block) {
-                    continue;
-                }
-
-                std::shared_ptr<CollisionMesh> mesh =
-                    block->get_collision_mesh(nbt);
-                if (!mesh || !mesh->physics_used() || mesh->empty()) {
-                    continue;
-                }
-
-                const Vec3f origin(static_cast<float>(bx),
-                                   static_cast<float>(by),
-                                   static_cast<float>(bz));
-                for (const Aabb& local_box : mesh->boxes) {
-                    if (!local_box.valid()) {
-                        continue;
-                    }
-                    const Aabb world_box = local_box.translated(origin);
-                    if (world_box.max.y > max_y + kEpsilon) {
-                        continue;
-                    }
-
-                    const float overlap_x =
-                        std::min(max_x, world_box.max.x) -
-                        std::max(min_x, world_box.min.x);
-                    const float overlap_z =
-                        std::min(max_z, world_box.max.z) -
-                        std::max(min_z, world_box.min.z);
-                    if (overlap_x <= kEpsilon || overlap_z <= kEpsilon) {
-                        continue;
-                    }
-
-                    if (world_box.max.y > best) {
-                        best = world_box.max.y;
-                        found = true;
-                    }
-                }
-            }
-        }
-    }
-
-    if (!found) {
-        return false;
-    }
-    out_height = best;
-    return true;
+    return support_height_at(world,
+                             static_cast<float>(x) + 0.5f,
+                             static_cast<float>(z) + 0.5f,
+                             half_extents, max_y, max_drop, out_height);
 }
 
 bool GroundMover::try_step_up(World& world,

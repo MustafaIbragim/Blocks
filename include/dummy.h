@@ -17,11 +17,11 @@ class Inventory;
 // а ViewCam дополнительно хранит pitch для обзора от первого лица.
 class Dummy : public Entity {
 public:
-    // Размер блока в мировых единицах. Манекен задан в блоках:
-    // 1.2 x 3.6 x 1.2 блока => 0.6 x 1.8 x 0.6 мировых единицы.
-    static constexpr float BLOCK_SIZE = 0.5f;
-    static constexpr float BODY_RADIUS = 0.6f * BLOCK_SIZE;   // 0.3
-    static constexpr float BODY_HEIGHT = 3.6f * BLOCK_SIZE;   // 1.8 (полная высота)
+    // Один блок = 1.0 мировой единицы = 0.5 метра. Манекен задан в
+    // мировых единицах: 1.2 x 3.6 x 1.2 => 0.6 x 1.8 x 0.6 метра.
+    static constexpr float BLOCK_SIZE = 1.0f;
+    static constexpr float BODY_RADIUS = 0.6f * BLOCK_SIZE;   // 0.6
+    static constexpr float BODY_HEIGHT = 3.6f * BLOCK_SIZE;   // 3.6 (полная высота)
     // Высота цилиндрической части старой капсулы. Оставлена для
     // совместимости; новый движок использует AABB.
     static constexpr float CAPSULE_HEIGHT = BODY_HEIGHT - 2.0f * BODY_RADIUS;
@@ -91,8 +91,9 @@ public:
         body.gravity_enabled = gravity_enabled;
     }
 
-    // Перемещение из блока from в блок to за duration секунд. Если путь
-    // непроходим, команда не выдаётся и возвращается false.
+    // Перемещение из блока from в блок to. Скорость постоянная и задаётся
+    // mover.speed; duration оставлен для совместимости и не влияет на неё.
+    // Если путь непроходим, команда не выдаётся и возвращается false.
     bool move_to(World& world,
                  const Vec3i& from,
                  const Vec3i& to,

@@ -177,6 +177,8 @@ PYBIND11_MODULE(collision_module, m) {
         .def_readwrite("half_extents", &DynamicCollision::half_extents)
         .def_readwrite("velocity", &DynamicCollision::velocity)
         .def_readwrite("mass", &DynamicCollision::mass)
+        .def_readwrite("drag", &DynamicCollision::drag)
+        .def_property_readonly("effective_drag", &DynamicCollision::get_drag)
         .def_readwrite("collisions_enabled", &DynamicCollision::collisions_enabled)
         .def_readwrite("gravity_enabled", &DynamicCollision::gravity_enabled)
         .def_readonly("grounded", &DynamicCollision::grounded)

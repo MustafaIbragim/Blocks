@@ -644,12 +644,34 @@ void Renderer::render_meshes(const std::vector<MeshInstance>& instances,
             continue;
         }
 
-        // Колоночная матрица: масштаб, затем перенос в мировую позицию.
+        // Колоночная матрица: масштаб, поворот (R = Rx * Ry * Rz, как в
+        // Vec3f::rotate(Vec3r)), затем перенос в мировую позицию.
+        const float cx = std::cos(instance.rotation.x);
+        const float sx = std::sin(instance.rotation.x);
+        const float cy = std::cos(instance.rotation.y);
+        const float sy = std::sin(instance.rotation.y);
+        const float cz = std::cos(instance.rotation.z);
+        const float sz = std::sin(instance.rotation.z);
+
+        const float r00 = cy * cx;
+        const float r01 = -cy * sx;
+        const float r02 = sy;
+        const float r10 = cz * sx + sz * sy * cx;
+        const float r11 = cz * cx - sz * sy * sx;
+        const float r12 = -sz * cy;
+        const float r20 = sz * sx - cz * sy * cx;
+        const float r21 = sz * cx + cz * sy * sx;
+        const float r22 = cz * cy;
+
         const float model[16] = {
-            instance.scale.x, 0.0f, 0.0f, 0.0f,
-            0.0f, instance.scale.y, 0.0f, 0.0f,
-            0.0f, 0.0f, instance.scale.z, 0.0f,
-            instance.position.x, instance.position.y, instance.position.z, 1.0f
+            r00 * instance.scale.x, r10 * instance.scale.x,
+            r20 * instance.scale.x, 0.0f,
+            r01 * instance.scale.y, r11 * instance.scale.y,
+            r21 * instance.scale.y, 0.0f,
+            r02 * instance.scale.z, r12 * instance.scale.z,
+            r22 * instance.scale.z, 0.0f,
+            instance.position.x, instance.position.y, instance.position.z,
+            1.0f
         };
         glUniformMatrix4fv(
             glGetUniformLocation(entity_shader_program, "uModel"),

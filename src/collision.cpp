@@ -9,6 +9,7 @@
 
 #include "block.h"
 #include "chunk.h"
+#include "entity.h"
 #include "world.h"
 
 
@@ -17,6 +18,27 @@ namespace {
 constexpr float kContactEpsilon = 1e-4f;
 constexpr float kMovementEpsilon = 1e-6f;
 constexpr float kMaxDeltaTime = 0.1f;
+
+// Квадратичное сопротивление по вертикали: замедление ~ drag * v * |v|.
+// Горизонтальные компоненты не трогаем: ими управляют PathMover/игрок, а
+// drag в Entity описан как сопротивление падению.
+void apply_vertical_drag(DynamicCollision& body, float delta_time) {
+    const float coefficient = body.get_drag();
+    if (coefficient <= 0.0f || delta_time <= 0.0f) {
+        return;
+    }
+
+    const float velocity_y = body.velocity.y;
+    if (std::abs(velocity_y) <= kMovementEpsilon) {
+        return;
+    }
+
+    // Явная схема Эйлера может «перелететь» ноль при большом drag. Не
+    // позволяем коэффициенту стать отрицательным.
+    const float factor = std::max(
+        0.0f, 1.0f - coefficient * std::abs(velocity_y) * delta_time);
+    body.velocity.y = velocity_y * factor;
+}
 
 inline float component(const Vec3f& value, int axis) {
     if (axis == 0) return value.x;
@@ -684,6 +706,17 @@ DynamicCollision::DynamicCollision() {
     reset_history();
 }
 
+float DynamicCollision::get_drag() const {
+    // Локальное значение удобно для тел без Entity. Если тело принадлежит
+    // Entity, берём максимум: так работает и настройка entity.drag, и
+    // точечная настройка самого физического тела.
+    float value = drag;
+    if (owner) {
+        value = std::max(value, owner->drag);
+    }
+    return std::max(0.0f, value);
+}
+
 Aabb DynamicCollision::get_bounds() const {
     return Aabb::from_center_half(position, half_extents);
 }
@@ -1275,6 +1308,9 @@ void CollisionWorld::step(float delta_time,
         if (body && body->enabled && body->gravity_enabled) {
             body->velocity = body->velocity + gravity_ * dt;
         }
+        if (body && body->enabled) {
+            apply_vertical_drag(*body, dt);
+        }
     }
 
     const int substeps = choose_substeps(all_bodies, dt, max_substeps);
@@ -1381,6 +1417,9 @@ void CollisionWorld::step_fragments(float delta_time) {
     for (FragmentCollision* body : fragments) {
         if (body && body->enabled && body->gravity_enabled) {
             body->velocity = body->velocity + gravity_ * dt;
+        }
+        if (body && body->enabled) {
+            apply_vertical_drag(*body, dt);
         }
     }
 
@@ -1508,6 +1547,7 @@ void step_fragment_against_world(World& world,
     if (body.gravity_enabled) {
         body.velocity = body.velocity + gravity * dt;
     }
+    apply_vertical_drag(body, dt);
 
     std::vector<DynamicCollision*> single{&body};
     const int substeps = choose_substeps(single, dt, 16);

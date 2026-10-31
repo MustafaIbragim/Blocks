@@ -320,6 +320,7 @@ void Inventory::clear() {
 ItemEntity::ItemEntity() {
     collision_body.set_half_extents(Vec3f(0.2f, 0.2f, 0.2f));
     collision_body.mass = 0.1f;
+    collision_body.owner = this;
     collision_body.reset_history();
     render_position = transform.position;
 
@@ -340,6 +341,7 @@ ItemEntity::ItemEntity(const ItemStack& stack,
     collision_body.position = position;
     collision_body.velocity = velocity;
     collision_body.mass = 0.1f;
+    collision_body.owner = this;
     collision_body.gravity_enabled = true;
     collision_body.collisions_enabled = true;
     collision_body.reset_history();

@@ -36,19 +36,23 @@ struct Sprite {
 // Экземпляр 3D-меша с обычной 2D-текстурой. Используется для выброшенных
 // предметов: Item::mesh задаёт геометрию, texture_id — иконку предмета.
 // Меш должен быть центрирован в начале координат; position — его центр в мире.
+// rotation поворачивает только графику (коллизии не затрагиваются).
 struct MeshInstance {
     std::shared_ptr<Mesh> mesh;
     Vec3f position;
     Vec3f scale = Vec3f::one();
     uint32_t texture_id = 0;
+    // Эйлеровы углы в той же конвенции, что и Vec3f::rotate(Vec3r).
+    Vec3r rotation = Vec3r();
 
     MeshInstance() = default;
     MeshInstance(std::shared_ptr<Mesh> mesh,
                  const Vec3f& position,
                  const Vec3f& scale = Vec3f::one(),
-                 uint32_t texture_id = 0)
+                 uint32_t texture_id = 0,
+                 const Vec3r& rotation = Vec3r())
         : mesh(std::move(mesh)), position(position), scale(scale),
-          texture_id(texture_id) {}
+          texture_id(texture_id), rotation(rotation) {}
 };
 
 

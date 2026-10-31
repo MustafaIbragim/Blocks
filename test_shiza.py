@@ -63,6 +63,7 @@ def test_renderer():
     import collision_module as pm
     import item_module as items
     import light_engine_module as lem
+    import movement_module as mov
     
     # ------------------------------------------------------------------
     # Быстрые проверки хранилища: NBT как uint16, обратная запись из блока
@@ -328,6 +329,12 @@ def test_renderer():
     renderer.init(800, 600, "Voxel Engine - Camera/Dummy + Raycast")
     renderer.upload_block_textures(tex_blocks_mgr)
     renderer.upload_texture(ITEM_TEXTURE_ID, item_image)
+
+    # Красная текстура для тестовой сущности-куба.
+    RED_CUBE_TEXTURE_ID = 101
+    red_cube_image = img_module.Image(16, 16)
+    red_cube_image.fill(vm.Vec4u8(225, 35, 35, 255))
+    renderer.upload_texture(RED_CUBE_TEXTURE_ID, red_cube_image)
     
     def chunk_mesh_id(chunk_pos):
         return int(chunk_pos.x + 32768) * 65536 + int(chunk_pos.y + 32768)
@@ -352,7 +359,7 @@ def test_renderer():
     input_mgr.set_cursor_visible(False)
 
     dummy = dm.Dummy(
-        vm.Vec3f(15.0, 16.9, 25.0),
+        vm.Vec3f(15.0, 17.8, 25.0),
         vm.Vec3r(0.0, -0.2, 0.0, False),
     )
     dummy.view.fov = 70.0
@@ -375,6 +382,97 @@ def test_renderer():
 
     # Dummy владеет своим AABB-телом; CollisionWorld лишь регистрирует его.
     player_body = physics.add_entity(dummy.body)
+
+    # ------------------------------------------------------------------
+    # Тестовая сущность: красный куб. Раз в несколько секунд он выбирает
+    # случайную клетку в квадрате вокруг себя и идёт к ней через GroundMover.
+    # Для него создан отдельный CollisionWorld, чтобы движение куба не
+    # зависело от того, включена ли физика игрока (F6). Меш куба поворачивается
+    # в сторону движения, коллизия при этом остаётся неориентированным AABB.
+    # ------------------------------------------------------------------
+    def add_cube_part(mesh, center, half):
+        """Добавляет к мешу ещё один куб (центр и половинные размеры)."""
+        cx, cy, cz = center
+        hx, hy, hz = half
+
+        def p(x, y, z):
+            return (cx + x * hx, cy + y * hy, cz + z * hz)
+
+        def quad(a, b, c, d):
+            i0 = mesh.add_vertex(*a)
+            i1 = mesh.add_vertex(*b)
+            i2 = mesh.add_vertex(*c)
+            i3 = mesh.add_vertex(*d)
+            mesh.add_triangle(i0, i1, i2)
+            mesh.add_triangle(i0, i2, i3)
+
+        quad(p(-1, -1,  1), p(-1,  1,  1), p(-1,  1, -1), p(-1, -1, -1))
+        quad(p( 1, -1, -1), p( 1,  1, -1), p( 1,  1,  1), p( 1, -1,  1))
+        quad(p(-1, -1, -1), p( 1, -1, -1), p( 1, -1,  1), p(-1, -1,  1))
+        quad(p(-1,  1, -1), p(-1,  1,  1), p( 1,  1,  1), p( 1,  1, -1))
+        quad(p(-1, -1, -1), p(-1,  1, -1), p( 1,  1, -1), p( 1, -1, -1))
+        quad(p( 1, -1,  1), p( 1,  1,  1), p(-1,  1,  1), p(-1, -1,  1))
+
+    class RedCube:
+        def __init__(self, position):
+            half = vm.Vec3f(0.5, 0.5, 0.5)
+            self.body = pm.EntityCollision(half, position, 1.0)
+            self.body.set_interpolation_ticks(2)
+            self.body.drag = 0.5
+            self.mover = mov.GroundMover(0.5, 1.0, 0.55)
+            self.mover.half_extents = half
+            # Постоянная скорость: длинный путь занимает больше времени.
+            self.mover.speed = 3.0
+            # Куб + небольшой «нос» вдоль локальной +Z, чтобы поворот меша
+            # был виден: меш смотрит в сторону движения.
+            self.mesh = items.Item.create_cube_mesh(1.0)
+            add_cube_part(self.mesh, (0.0, 0.0, 0.7), (0.15, 0.15, 0.3))
+            self.yaw = 0.0
+            self.radius = 6
+            self.step_height = 0.55
+            self.next_move_time = time.time() + random.uniform(2.0, 6.0)
+
+        def _plan_next_move(self, world, now):
+            current = mov.PathMover.current_block(self.body)
+            for _ in range(24):
+                tx = current.x + random.randint(-self.radius, self.radius)
+                tz = current.z + random.randint(-self.radius, self.radius)
+                if tx == current.x and tz == current.z:
+                    continue
+                target = vm.Vec3i(tx, current.y, tz)
+                duration = random.uniform(1.0, 2.5)
+                if self.mover.move_to(world, self.body, target, duration,
+                                      self.step_height):
+                    self.next_move_time = now + random.uniform(4.0, 8.0)
+                    return
+            # Если случайная цель оказалась недостижима, попробуем снова
+            # чуть позже, не задерживая физику куба.
+            self.next_move_time = now + 0.5
+
+        def update(self, world, cube_physics, now, delta_time):
+            if now >= self.next_move_time and not self.mover.is_moving():
+                self._plan_next_move(world, now)
+
+            if self.mover.is_moving():
+                self.mover.update(world, self.body, delta_time)
+
+            cube_physics.step(delta_time)
+
+            # Поворачиваем только графику: коллизия остаётся AABB.
+            vx = self.body.velocity.x
+            vz = self.body.velocity.z
+            if vx * vx + vz * vz > 1e-6:
+                # R_y(yaw) переводит локальную +Z в (sin yaw, 0, cos yaw).
+                self.yaw = math.atan2(vx, vz)
+
+    cube_physics = pm.CollisionWorld()
+    cube_physics.set_world(world)
+    for cx in range(2):
+        for cz in range(2):
+            cube_physics.add_chunk(world, vm.Vec2i(cx, cz))
+
+    red_cube = RedCube(vm.Vec3f(25.5, 16.5, 25.5))
+    cube_physics.add_entity(red_cube.body)
 
     physics_on = False
     dummy.set_collisions_enabled(False)
@@ -456,7 +554,9 @@ def test_renderer():
         
         if physics_on:
             vertical_velocity = dummy.body.velocity.y
-            if vertical > 0.0:
+            # Прыжок разрешён только при контакте с полом: grounded
+            # выставляется физикой после проверки касания опоры.
+            if vertical > 0.0 and dummy.body.grounded:
                 vertical_velocity = 9.5
             elif vertical < 0.0:
                 vertical_velocity = -9.5
@@ -484,6 +584,9 @@ def test_renderer():
         # Свет обновляется не чаще 20 Гц, затем автоматически пересобираются
         # только затронутые чанки и отправляются в рендерер через callback.
         world.update(dt)
+
+        # Красный куб: собственный физический шаг и движение по A*.
+        red_cube.update(world, cube_physics, now, dt)
 
         # --- Рейкаст и взаимодействие с блоками ---
         hit = rc.raycast_voxel(
@@ -598,7 +701,17 @@ def test_renderer():
                     entity.sprite_size,
                     ITEM_TEXTURE_ID,
                 ))
-        renderer.render_meshes(item_meshes, dummy.view)
+        # Красный куб рисуется тем же проходом, что и предметы, но со своей
+        # текстурой и геометрией.
+        entity_meshes = list(item_meshes)
+        entity_meshes.append(rm.MeshInstance(
+            red_cube.mesh,
+            red_cube.body.get_render_position(0.0),
+            vm.Vec3f(1.0, 1.0, 1.0),
+            RED_CUBE_TEXTURE_ID,
+            vm.Vec3r(0.0, red_cube.yaw, 0.0, False),
+        ))
+        renderer.render_meshes(entity_meshes, dummy.view)
         renderer.render_sprites(item_sprites, dummy.view)
 
         # HUD: иконка предмета в слоте 0 и его количество в левом нижнем углу.

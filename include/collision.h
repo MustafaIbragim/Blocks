@@ -12,6 +12,7 @@
 
 
 class World;
+class Entity;
 class CollisionObject;
 class StaticCollision;
 class EntityCollision;
@@ -179,6 +180,18 @@ public:
     Vec3f half_extents = Vec3f(0.5f, 0.5f, 0.5f);
     Vec3f velocity;
     float mass = 1.0f;
+
+    // Коэффициент квадратичного сопротивления (drag * v * |v|). Если задан
+    // owner, используется Entity::drag, иначе это локальное значение.
+    float drag = 0.0f;
+
+    // Необязательная game-сущность, которой принадлежит тело (Dummy,
+    // ItemEntity). Позволяет физике читать актуальный Entity::drag без
+    // ручной синхронизации полей на каждом кадре.
+    Entity* owner = nullptr;
+
+    // Действующий коэффициент сопротивления с учётом owner.
+    float get_drag() const;
 
     bool collisions_enabled = true;
     bool gravity_enabled = true;

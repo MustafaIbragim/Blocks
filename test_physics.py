@@ -227,7 +227,7 @@ def test_no_upward_push_on_wall_touch():
     # выбирал верхнюю грань блока и телепортировал тело наверх.
     world.set_block(vm.Vec3i(16, 12, 14), dirt)
 
-    dummy = dm.Dummy(vm.Vec3f(16.0, 11.9, 20.0),
+    dummy = dm.Dummy(vm.Vec3f(16.0, 12.8, 20.0),
                      vm.Vec3r(0.0, 0.0, 0.0, False))
     physics.add_entity(dummy.body)
 
@@ -238,9 +238,9 @@ def test_no_upward_push_on_wall_touch():
         physics.step(1.0 / 60.0)
         max_y = max(max_y, dummy.body.position.y)
 
-    assert max_y < 12.2, \
+    assert max_y < 13.0, \
         f"боковое касание подбросило Dummy на стену: max_y={max_y}"
-    assert close(dummy.body.position.z, 15.3, 1e-3), \
+    assert close(dummy.body.position.z, 15.6, 1e-3), \
         f"Dummy должен остановиться у стены: {dummy.body.position}"
     print("  Static wall: боковое касание не телепортирует вверх OK")
 
@@ -258,7 +258,7 @@ def test_wall_sliding():
     for z in range(5, 35):
         world.set_block(vm.Vec3i(15, 11, z), dirt)
 
-    dummy = dm.Dummy(vm.Vec3f(16.0, 11.9, 10.5),
+    dummy = dm.Dummy(vm.Vec3f(16.7, 12.8, 10.5),
                      vm.Vec3r(0.0, 0.0, 0.0, False))
     physics.add_entity(dummy.body)
 
@@ -275,11 +275,11 @@ def test_wall_sliding():
 
     assert dummy.body.position.z > 30.0, \
         f"Dummy застрял на шве стены: {dummy.body.position}"
-    assert max_y < 12.0, \
+    assert max_y < 13.0, \
         f"скольжение вдоль стены подбросило Dummy: max_y={max_y}"
 
     # Обратное направление вдоль того же ряда.
-    dummy.body.set_position(vm.Vec3f(16.0, 11.9, 29.5))
+    dummy.body.set_position(vm.Vec3f(16.7, 12.8, 29.5))
     dummy.body.velocity = vm.Vec3f(0.0, 0.0, 0.0)
     for _ in range(180):
         dummy.body.velocity = vm.Vec3f(-8.0, dummy.body.velocity.y, -8.0)
@@ -830,6 +830,98 @@ def test_item_physics():
 
 
 # ---------------------------------------------------------------------------
+# 9b. Квадратичное сопротивление (drag) замедляет падение
+# ---------------------------------------------------------------------------
+def test_vertical_drag():
+    physics = pm.CollisionWorld()
+    free_id = physics.add_entity(
+        vm.Vec3f(0.5, 0.5, 0.5), vm.Vec3f(0.0, 20.0, 0.0), 1.0)
+    drag_id = physics.add_entity(
+        vm.Vec3f(0.5, 0.5, 0.5), vm.Vec3f(10.0, 20.0, 0.0), 1.0)
+    free_body = physics.get_entity(free_id)
+    drag_body = physics.get_entity(drag_id)
+    drag_body.drag = 0.5
+    assert close(drag_body.effective_drag, 0.5)
+
+    for _ in range(60):
+        physics.step(1.0 / 60.0)
+
+    assert drag_body.velocity.y > free_body.velocity.y + 1.0, \
+        f"drag не замедлил падение: {drag_body.velocity.y} vs " \
+        f"{free_body.velocity.y}"
+
+    # У Dummy drag хранится в Entity; физическое тело должно читать его
+    # через owner без ручной синхронизации.
+    entity_physics = pm.CollisionWorld()
+    dummy = dm.Dummy(vm.Vec3f(0.0, 20.0, 0.0),
+                     vm.Vec3r(0.0, 0.0, 0.0, False))
+    dummy.drag = 0.5
+    entity_physics.add_entity(dummy.body)
+    for _ in range(60):
+        entity_physics.step(1.0 / 60.0)
+    assert close(dummy.body.effective_drag, 0.5)
+    assert close(dummy.body.velocity.y, drag_body.velocity.y, 1e-4), \
+        "Entity::drag не дошёл до физического тела"
+    print("  Drag: квадратичное сопротивление и Entity.drag OK")
+
+
+# ---------------------------------------------------------------------------
+# 9c. Сглаживание пути и постоянная скорость движения
+# ---------------------------------------------------------------------------
+def test_straight_line_movement():
+    world, dirt, block_mgr, tex_blocks_mgr, tex_mgr = make_world(chunks_x=1)
+    physics = make_collision_world(world, chunks_x=1)
+
+    # Один блок = 1.0 мировой единицы = 0.5 м. Манекен — 3.6 единицы.
+    assert close(dm.Dummy.BODY_HEIGHT, 3.6), \
+        f"неверная высота Dummy: {dm.Dummy.BODY_HEIGHT}"
+    assert close(dm.Dummy.BODY_RADIUS, 0.6), \
+        f"неверный радиус Dummy: {dm.Dummy.BODY_RADIUS}"
+
+    dummy = dm.Dummy(vm.Vec3f(10.5, 12.8, 10.5),
+                     vm.Vec3r(0.0, 0.0, 0.0, False))
+    physics.add_entity(dummy.body)
+
+    start = vm.Vec3i(10, 11, 10)
+    target = vm.Vec3i(14, 11, 14)
+    dummy.mover.speed = 3.0
+    assert dummy.move_to(world, start, target, 0.05, 0.6), \
+        "Dummy не принял диагональный путь"
+    assert close(dummy.mover.speed, 3.0), \
+        "duration не должен пересчитывать скорость по длине пути"
+
+    prev = vm.Vec3f(dummy.body.position.x,
+                    dummy.body.position.y,
+                    dummy.body.position.z)
+    diagonal = False
+    for _ in range(60):
+        dummy.update_movement(world, 1.0 / 60.0)
+        physics.step(1.0 / 60.0)
+        pos = dummy.body.position
+        dx = pos.x - prev.x
+        dz = pos.z - prev.z
+        if abs(dx) > 1e-5 and abs(dz) > 1e-5:
+            diagonal = True
+        prev = vm.Vec3f(pos.x, pos.y, pos.z)
+
+    assert diagonal, "Dummy должен идти по диагонали, а не по осям X/Z"
+    distance = math.hypot(prev.x - 10.5, prev.z - 10.5)
+    assert close(distance, 3.0, 0.2), \
+        f"скорость не постоянная: за 1 с пройдено {distance}"
+
+    for _ in range(180):
+        dummy.update_movement(world, 1.0 / 60.0)
+        physics.step(1.0 / 60.0)
+
+    assert close(dummy.body.position.x, 14.5, 0.2), \
+        f"Dummy не дошёл до цели по X: {dummy.body.position}"
+    assert close(dummy.body.position.z, 14.5, 0.2), \
+        f"Dummy не дошёл до цели по Z: {dummy.body.position}"
+    assert not dummy.is_moving()
+    print("  Movement: прямая диагональ и постоянная скорость OK")
+
+
+# ---------------------------------------------------------------------------
 # 10. Movement: поиск пути A -> B, ступеньки, полёт и item-entity
 # ---------------------------------------------------------------------------
 def test_movement_module():
@@ -860,7 +952,7 @@ def test_movement_module():
 
     # Dummy идёт по этому же пути и реально забирается на стену.
     physics = make_collision_world(world)
-    dummy = dm.Dummy(vm.Vec3f(14.5, 11.9, 16.5),
+    dummy = dm.Dummy(vm.Vec3f(14.5, 12.8, 16.5),
                      vm.Vec3r(0.0, 0.0, 0.0, False))
     physics.add_entity(dummy.body)
     assert dummy.dynamic
@@ -878,10 +970,10 @@ def test_movement_module():
         dummy.sync_view_from_body(0.0)
         max_y = max(max_y, dummy.body.position.y)
 
-    assert max_y > 12.5, f"Dummy не поднялся на стену: max_y={max_y}"
+    assert max_y > 13.6, f"Dummy не поднялся на стену: max_y={max_y}"
     assert close(dummy.body.position.x, 18.5, 0.2), \
         f"Dummy не дошёл до цели: {dummy.body.position}"
-    assert close(dummy.body.position.y, 11.9, 0.2), \
+    assert close(dummy.body.position.y, 12.8, 0.2), \
         f"Dummy не спустился с стены: {dummy.body.position}"
     assert not dummy.is_moving()
 
@@ -896,7 +988,7 @@ def test_movement_module():
         "воздушный путь не найден"
     assert max(node.feet_y for node in fly.path) >= 12.0
 
-    fly_dummy = dm.Dummy(vm.Vec3f(14.5, 11.9, 16.5),
+    fly_dummy = dm.Dummy(vm.Vec3f(14.5, 12.8, 16.5),
                          vm.Vec3r(0.0, 0.0, 0.0, False))
     fly_physics.add_entity(fly_dummy.body)
     assert fly.move_to(fly_world, fly_dummy.body, start, target, 2.0, 0.0)
@@ -910,7 +1002,7 @@ def test_movement_module():
 
     assert close(fly_dummy.body.position.x, 18.5, 0.2), \
         f"летящий Dummy не дошёл до цели: {fly_dummy.body.position}"
-    assert close(fly_dummy.body.position.y, 11.9, 0.2), \
+    assert close(fly_dummy.body.position.y, 12.8, 0.2), \
         f"летящий Dummy не опустился: {fly_dummy.body.position}"
     assert fly_dummy.body.gravity_enabled, \
         "после полёта гравитация должна восстановиться"
@@ -958,6 +1050,8 @@ def main():
     test_trigger()
     test_interpolation()
     test_item_physics()
+    test_vertical_drag()
+    test_straight_line_movement()
     test_movement_module()
     print("ALL COLLISION TESTS PASSED")
 

@@ -3,7 +3,7 @@ from typing import Optional, overload
 from image_module import Image
 from mesh_module import Mesh
 from texture_module import TextureBlocksManager
-from vec_module import Vec3f
+from vec_module import Vec3f, Vec3r
 from view_cam_module import ViewCam
 
 # ViewCam живёт в отдельном модуле; биндинг оставляет алиас для совместимости.
@@ -28,6 +28,7 @@ class MeshInstance:
     position: Vec3f
     scale: Vec3f
     texture_id: int
+    rotation: Vec3r
 
     @overload
     def __init__(self) -> None: ...
@@ -38,6 +39,7 @@ class MeshInstance:
         position: Vec3f,
         scale: Vec3f = ...,
         texture_id: int = 0,
+        rotation: Vec3r = ...,
     ) -> None: ...
 
     def __repr__(self) -> str: ...

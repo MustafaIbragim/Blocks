@@ -122,6 +122,8 @@ class DynamicCollision(CollisionObject):
     half_extents: Vec3f
     velocity: Vec3f
     mass: float
+    drag: float
+    effective_drag: float
     collisions_enabled: bool
     gravity_enabled: bool
     grounded: bool

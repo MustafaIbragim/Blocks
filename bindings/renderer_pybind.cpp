@@ -31,14 +31,16 @@ PYBIND11_MODULE(renderer_module, m) {
     py::class_<MeshInstance>(m, "MeshInstance")
         .def(py::init<>())
         .def(py::init<std::shared_ptr<Mesh>, const Vec3f&, const Vec3f&,
-                      uint32_t>(),
+                      uint32_t, const Vec3r&>(),
              py::arg("mesh"), py::arg("position"),
              py::arg("scale") = Vec3f::one(),
-             py::arg("texture_id") = 0)
+             py::arg("texture_id") = 0,
+             py::arg("rotation") = Vec3r())
         .def_readwrite("mesh", &MeshInstance::mesh)
         .def_readwrite("position", &MeshInstance::position)
         .def_readwrite("scale", &MeshInstance::scale)
         .def_readwrite("texture_id", &MeshInstance::texture_id)
+        .def_readwrite("rotation", &MeshInstance::rotation)
         .def("__repr__", [](const MeshInstance& instance) {
             return "MeshInstance(texture_id=" +
                    std::to_string(instance.texture_id) + ")";
